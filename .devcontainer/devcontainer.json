@@ -8,7 +8,7 @@
 		"ghcr.io/devcontainers-contrib/features/nestjs-cli:2": {},
 		"ghcr.io/devcontainers-contrib/features/npm-package:1": {}
 	},
-	"forwardPorts": [3001]
+	"forwardPorts": [30125]
 	
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
