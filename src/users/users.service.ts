@@ -36,7 +36,7 @@ export class UsersService {
 
   changePseudonym(id: number, username: string) {
     return this.prismaService.user.update({
-      where: { id },
+      where: { id: id },
       data: { username: username }
     });
   }

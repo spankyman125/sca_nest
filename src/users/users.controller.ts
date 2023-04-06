@@ -1,16 +1,19 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   Param,
   Patch,
   Post,
+  Request,
+  UseGuards
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { UsersService } from './users.service';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from 'src/auth/auth.guard';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UsersService } from './users.service';
+import { ApiBearerAuth } from '@nestjs/swagger';
+import { ChangePseudonymDto } from './dto/change-pseudonym-user.dto';
 
 @ApiTags('users')
 @Controller('users')
@@ -39,11 +42,13 @@ export class UsersController {
   readUserByUsername(@Param('id') username: string) {
     return this.usersService.findOneByUsername(username);
   }
-
+  
   @ApiOperation({ description: "Change username for specified id" })
-  @Patch(':id')
-  changeUsername(@Param('id') id: string, @Body() username: string) {
-    return this.usersService.changePseudonym(+id, username);
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard)
+  @Patch('/changeUsername')
+  changeUsername(@Request() req, @Body() changePseudonymDto: ChangePseudonymDto) {
+    return this.usersService.changePseudonym(req.user.sub, changePseudonymDto.pseudonym);
   }
 
   @ApiOperation({ description: "Add friend with specified id" })

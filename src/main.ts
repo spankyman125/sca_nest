@@ -5,7 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const config = new DocumentBuilder()
+  const config = new DocumentBuilder().addBearerAuth()
     .setTitle('SCA_API')
     .setDescription('API definition for sca app')
     .setVersion('0.1')
