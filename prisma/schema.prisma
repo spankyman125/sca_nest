@@ -33,7 +33,7 @@ model Message {
   createdAt DateTime @default(now())
   roomId    Int
   userId    Int
-  room      Room     @relation(fields: [roomId], references: [id])
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
 }
 

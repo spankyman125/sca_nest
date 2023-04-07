@@ -7,9 +7,17 @@ import { MessagesModule } from './messages/messages.module';
 import { AuthModule } from './auth/auth.module';
 import { CryptService } from './crypt/crypt.service';
 import { CryptModule } from './crypt/crypt.module';
+import { RoomsModule } from './rooms/rooms.module';
 
 @Module({
-  imports: [UsersModule, PrismaModule, MessagesModule, AuthModule, CryptModule],
+  imports: [
+    UsersModule,
+    PrismaModule,
+    MessagesModule,
+    AuthModule,
+    CryptModule,
+    RoomsModule
+  ],
   controllers: [AppController],
   providers: [AppService, CryptService],
 })
