@@ -17,7 +17,7 @@ import { jwtSecret } from './secret';
     JwtModule.register({
       global: true,
       secret: jwtSecret,
-      signOptions: { expiresIn: '300s' }
+      signOptions: { expiresIn: '3000s' }
     }),
   ],
   exports: [AuthService]
