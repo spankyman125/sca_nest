@@ -20,7 +20,7 @@ import { ChangePseudonymDto } from './dto/change-pseudonym-user.dto';
 export class UsersController {
   constructor(private readonly usersService: UsersService) { }
 
-  @ApiOperation({ description: "Create user" })
+  @ApiOperation({ summary: "Create user" })
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
@@ -31,27 +31,23 @@ export class UsersController {
   //   return this.usersService.findAll();
   // }
 
-  @ApiOperation({ description: "Get user by specified id" })
+  @ApiOperation({ summary: "Get user by specified id" })
   @Get(':id')
   readUserById(@Param('id') id: number) {
     return this.usersService.findOneById(+id);
   }
   
-  @ApiOperation({ description: "Get user by specified username" })
+  @ApiOperation({ summary: "Get user by specified username" })
   @Get(':id')
   readUserByUsername(@Param('id') username: string) {
     return this.usersService.findOneByUsername(username);
   }
   
-  @ApiOperation({ description: "Change username for specified id" })
-  @ApiBearerAuth()
-  @UseGuards(AuthGuard)
-  @Patch('/changeUsername')
-  changeUsername(@Request() req, @Body() changePseudonymDto: ChangePseudonymDto) {
+  @ApiOperation({ summary: "Change username for specified id" })
     return this.usersService.changePseudonym(req.user.sub, changePseudonymDto.pseudonym);
   }
 
-  @ApiOperation({ description: "Add friend with specified id" })
+  @ApiOperation({ summary: "Add friend with specified id" })
   @Patch(':id/addFriend')
   addFriend(@Param('id') id: string) {
     return this.usersService.addFriend(+id);
