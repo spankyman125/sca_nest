@@ -9,7 +9,7 @@ import {
   UseGuards
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from 'src/auth/auth.guard';
+import { ChangePseudonymDto } from './dto/change-pseudonym-user.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UsersService } from './users.service';
 import { ApiBearerAuth } from '@nestjs/swagger';
@@ -43,7 +43,9 @@ export class UsersController {
     return this.usersService.findOneByUsername(username);
   }
   
-  @ApiOperation({ summary: "Change username for specified id" })
+  @ApiOperation({ summary: "Change pseudonym for specified id" })
+  @Patch('/changePseudonym')
+  changePseudonym(@Request() req, @Body() changePseudonymDto: ChangePseudonymDto) {
     return this.usersService.changePseudonym(req.user.sub, changePseudonymDto.pseudonym);
   }
 

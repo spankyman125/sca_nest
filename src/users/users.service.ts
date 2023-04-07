@@ -34,10 +34,10 @@ export class UsersService {
     return this.prismaService.user.findUnique({ where: { username: username } });
   }
 
-  changePseudonym(id: number, username: string) {
+  changePseudonym(id: number, pseudonym: string) {
     return this.prismaService.user.update({
       where: { id: id },
-      data: { username: username }
+      data: { pseudonym: pseudonym }
     });
   }
 
