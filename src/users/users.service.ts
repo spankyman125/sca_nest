@@ -1,63 +1,162 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { CryptService } from 'src/crypt/crypt.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  EntityNotFoundError,
+  UnprocessableEntityError,
+  UsernameExists,
+} from 'src/shared/errors/business-errors';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly cryptService: CryptService,
-    private readonly prismaService: PrismaService
-  ) { }
+    private readonly prismaService: PrismaService,
+  ) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const hash = await this.cryptService.getHash(createUserDto.password);
+  async findMany() {
+    return this.prismaService.user.findMany();
+  }
+
+  async create({ username, pseudonym, password }: CreateUserDto) {
+    const hash = await this.cryptService.getHash(password);
     const newUser = {
-      username: createUserDto.username,
-      pseudonym: createUserDto.pseudonym,
+      username: username,
+      pseudonym: pseudonym,
       passwordHash: hash,
-    }
-    return this.prismaService.user.create({
-      data: newUser,
+    };
+    return this.prismaService.user
+      .create({
+        data: newUser,
+      })
+      .catch(() => {
+        throw new UsernameExists();
+      });
+  }
+
+  async update(userId: number, { pseudonym }: UpdateUserDto) {
+    return this.prismaService.user
+      .update({
+        where: { id: userId },
+        data: { pseudonym },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async getRooms(userId: number) {
+    return this.prismaService.user
+      .findUniqueOrThrow({
+        where: { id: userId },
+        include: {
+          rooms: { include: { room: { select: { name: true, id: true } } } },
+        },
+      })
+      .then((user) => user.rooms.map((room) => room.room))
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async getMessages(userId: number) {
+    return this.prismaService.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: { messages: true },
     });
   }
 
-  // findAll() {
-  //   return this.prisma.user.findMany();
-  // }
-
-  findOneById(id: number) {
-    return this.prismaService.user.findUnique({ where: { id: id } });
+  async getFriends(userId: number) {
+    const selectFriendFields = {
+      avatarUrl: true,
+      id: true,
+      username: true,
+      pseudonym: true,
+    };
+    return this.prismaService.user
+      .findUniqueOrThrow({
+        where: { id: userId },
+        include: {
+          friendWith: {
+            include: { Friend: { select: selectFriendFields } },
+          },
+        },
+      })
+      .then((user) => user.friendWith.map((friend) => friend.Friend))
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
   }
 
-  findOneByUsername(username: string) {
-    return this.prismaService.user.findUnique({ where: { username: username } });
+  async addToRoom(userId: number, roomId: number) {
+    return this.prismaService.userRoomRelation
+      .create({
+        data: { userId, roomId },
+      })
+      .catch((e) => {
+        if (e instanceof Prisma.PrismaClientKnownRequestError) {
+          if (e.code === 'P2002') throw new UnprocessableEntityError();
+          if (e.code === 'P2003') throw new EntityNotFoundError();
+        }
+        throw e;
+      });
   }
 
-  changePseudonym(id: number, pseudonym: string) {
-    return this.prismaService.user.update({
-      where: { id: id },
-      data: { pseudonym: pseudonym }
+  async leaveRoom(userId: number, roomId: number) {
+    return this.prismaService.userRoomRelation
+      .delete({
+        where: { userId_roomId: { roomId, userId } },
+      })
+      .catch((e) => {
+        if (e instanceof Prisma.PrismaClientKnownRequestError) {
+          if (e.code === 'P2025') throw new EntityNotFoundError();
+        }
+        throw e;
+      });
+  }
+
+  async findOneById(id: number) {
+    return this.prismaService.user
+      .findUniqueOrThrow({ where: { id: id } })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async findOneByUsername(username: string) {
+    return this.prismaService.user
+      .findUnique({ where: { username: username } })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async remove(id: number) {
+    return this.prismaService.user.delete({ where: { id: id } }).catch(() => {
+      throw new EntityNotFoundError();
     });
   }
 
-  addFriend(id: number) {
-    return "This will add friend";
-    // return this.prisma.user.update({
-    //   where: {id},
-    //   data: {}
-    // });
+  async addFriend(userId: number, friendId: number) {
+    return this.prismaService.friendsRelation
+      .create({
+        data: { userId, friendId },
+      })
+      .catch(() => {
+        throw new UnprocessableEntityError();
+      });
   }
 
-  removeFriend(id: number) {
-    return "This will remove friend";
-    // return this.prisma.user.update({
-    //   where: {id},
-    //   data: {}
-    // });
+  async removeFriend(id: number, friendId: number) {
+    return this.prismaService.friendsRelation
+      .delete({
+        where: { userId_friendId: { friendId: friendId, userId: id } },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
   }
-
-  // remove(id: number) {
-  //   return `This action removes a #${id} user`;
-  // }
 }
