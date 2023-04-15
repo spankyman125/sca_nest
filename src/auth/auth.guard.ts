@@ -1,4 +1,3 @@
-
 import {
   CanActivate,
   ExecutionContext,
@@ -6,37 +5,59 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Request } from 'express';
 import { jwtSecret } from './secret';
+import { WsException } from '@nestjs/websockets';
 
 @Injectable()
-export class AuthGuard implements CanActivate {
-  constructor(private jwtService: JwtService) {}
+abstract class AbstractGuard implements CanActivate {
+  protected authException;
+  constructor(protected jwtService: JwtService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const token = this.extractTokenFromHeader(request);
+    const token = this.extractToken(context);
     if (!token) {
-      throw new UnauthorizedException();
+      throw new this.authException('Auth token not provided');
     }
     try {
-      const payload = await this.jwtService.verifyAsync(
-        token,
-        {
-          secret: jwtSecret
-        }
-      );
-      // 💡 We're assigning the payload to the request object here
-      // so that we can access it in our route handlers
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: jwtSecret,
+      });
       request['user'] = payload;
     } catch {
-      throw new UnauthorizedException();
+      throw new this.authException('Bad auth token');
     }
     return true;
   }
 
-  private extractTokenFromHeader(request: Request): string | undefined {
-    const [type, token] = request.headers.authorization?.split(' ') ?? [];
+  abstract extractToken(context: ExecutionContext): string | undefined;
+}
+
+export class WsGuard extends AbstractGuard {
+  constructor(args) {
+    super(args);
+    super.authException = WsException;
+  }
+
+  extractToken(context): string | undefined {
+    const [type, token] =
+      context
+        .switchToWs()
+        .getClient()
+        .handshake.headers.authorization?.split(' ') ?? [];
+    return type === 'Bearer' ? token : undefined;
+  }
+}
+
+export class HttpGuard extends AbstractGuard {
+  constructor(args) {
+    super(args);
+    super.authException = UnauthorizedException;
+  }
+  extractToken(context): string | undefined {
+    const [type, token] =
+      context.switchToHttp().getRequest().headers.authorization?.split(' ') ??
+      [];
     return type === 'Bearer' ? token : undefined;
   }
 }
