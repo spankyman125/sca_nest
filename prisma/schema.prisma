@@ -13,7 +13,7 @@ model User {
   passwordHash String
   pseudonym    String
   isOnline     Boolean            @default(false)
-  avatarUrl    String             @default("static/images/avatars/default.png")
+  avatarUrl    String             @default("static/images/avatars/user-default.png")
   messages     Message[]
   rooms        UserRoomRelation[]
   friendWith   FriendsRelation[]  @relation("friend")
@@ -21,10 +21,11 @@ model User {
 }
 
 model Room {
-  id       Int                @id @default(autoincrement())
-  name     String             @default("New Room")
-  messages Message[]
-  users    UserRoomRelation[]
+  id        Int                @id @default(autoincrement())
+  name      String             @default("New Room")
+  messages  Message[]
+  users     UserRoomRelation[]
+  avatarUrl String             @default("static/images/avatars/room-default.png")
 }
 
 model Message {
@@ -38,13 +39,31 @@ model Message {
 }
 
 model UserRoomRelation {
-  userId Int
-  roomId Int
-  User   User @relation(fields: [userId], references: [id])
-  Room   Room @relation(fields: [roomId], references: [id])
+  userId  Int
+  roomId  Int
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  private Boolean @default(false)
+  // joinedAt DateTime @default(now())
+  // permissions UserRoomToPermission[]
 
   @@id([userId, roomId])
 }
+
+// model UserRoomToPermission {
+//   userRoomId   Int
+//   permissionId Int
+//   userRoom     UserRoomRelation @relation(fields: [userRoomId, permissionId], references: [userId, roomId])
+//   permission   Permission       @relation(fields: [permissionId], references: [id])
+
+//   @@id([userRoomId, permissionId])
+// }
+
+// model Permission {
+//   id       Int                    @id @default(autoincrement())
+//   name     String
+//   userRoom UserRoomToPermission[]
+// }
 
 model FriendsRelation {
   userId   Int
