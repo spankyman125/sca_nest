@@ -1,26 +1,47 @@
 import { Injectable } from '@nestjs/common';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { CreateMessageDto } from 'src/messages/dto/create-message.dto';
+import { UpdateMessageDto } from 'src/messages/dto/update-message.dto';
+import { EntityNotFoundError } from 'src/shared/errors/business-errors';
+import { SocketServerService } from 'src/socket/socket.service';
 
 @Injectable()
 export class MessagesService {
-  create(createMessageDto: CreateMessageDto) {
-    return 'This action adds a new message';
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly socketServerService: SocketServerService,
+  ) {}
+
+  async createMessage(
+    roomId: number,
+    userId: number,
+    { content }: CreateMessageDto,
+  ) {
+    return this.prismaService.message
+      .create({
+        data: {
+          content,
+          user: { connect: { id: userId } },
+          room: { connect: { id: roomId } },
+        },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
   }
 
-  findAll() {
-    return `This action returns all messages`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} message`;
-  }
-
-  update(id: number, updateMessageDto: UpdateMessageDto) {
-    return `This action updates a #${id} message`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} message`;
+  async updateMessage(
+    userId: number,
+    messageId: number,
+    { content }: UpdateMessageDto,
+  ) {
+    return this.prismaService.message
+      .update({
+        where: { id: messageId },
+        data: { content },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
   }
 }

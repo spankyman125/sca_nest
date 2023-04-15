@@ -1,34 +1,58 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { MessagesService } from './messages.service';
+import {
+  Body,
+  Controller,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { User, UserPayload } from 'src/users/user.decorator';
 import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
+import { MessagesService } from './messages.service';
+import { Auth } from 'src/auth/auth.decorator';
 
+@Auth()
+@ApiTags('messages')
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
-  // @Post()
-  // create(@Body() createMessageDto: CreateMessageDto) {
-  //   return this.messagesService.create(createMessageDto);
-  // }
+  @ApiOperation({ summary: 'Create message in room with specified id' })
+  @ApiResponse({ status: 200, description: 'Message created' })
+  // @ApiResponse({ status: 400, description: 'Message not created, wrong data' })
+  // @ApiResponse({ status: 403, description: 'Not enough permissions' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @Post('')
+  async createMessage(
+    @Query('roomId', ParseIntPipe) roomId: number,
+    @User() user: UserPayload,
+    @Body() createMessageDto: CreateMessageDto,
+  ) {
+    return await this.messagesService
+      .createMessage(roomId, user.sub, createMessageDto)
+      .catch(() => {
+        throw new NotFoundException('Room not found');
+      });
+  }
 
-  // @Get()
-  // findAll() {
-  //   return this.messagesService.findAll();
-  // }
-
-  // @Get(':id')
-  // findOne(@Param('id') id: string) {
-  //   return this.messagesService.findOne(+id);
-  // }
-
-  // @Patch(':id')
-  // update(@Param('id') id: string, @Body() updateMessageDto: UpdateMessageDto) {
-  //   return this.messagesService.update(+id, updateMessageDto);
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.messagesService.remove(+id);
-  // }
+  @ApiOperation({ summary: 'Update message in room with specified id' })
+  @ApiResponse({ status: 200, description: 'Message updated' })
+  // @ApiResponse({ status: 400, description: 'Message not updated, wrong data' })
+  // @ApiResponse({ status: 403, description: 'Not enough permissions' })
+  @ApiResponse({ status: 404, description: 'Room not found' })
+  @Patch(':messageId')
+  async updateMessage(
+    @Param('messageId', ParseIntPipe) messageId: number,
+    @User() user: UserPayload,
+    @Body() updateMessageDto: CreateMessageDto,
+  ) {
+    return await this.messagesService
+      .updateMessage(user.sub, messageId, updateMessageDto)
+      .catch(() => {
+        throw new NotFoundException('Room not found');
+      });
+  }
 }
