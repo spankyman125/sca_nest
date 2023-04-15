@@ -1,67 +1,125 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Room } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
-
-const notFound = (exception) => {
-  if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-    if (exception.code === 'P2025') return undefined;
-  };
-  throw exception;
-}
+import { EntityNotFoundError } from 'src/shared/errors/business-errors';
+import { SocketServerService } from 'src/socket/socket.service';
+import { CreateRoomDto } from './dto/create-room.dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
 
 @Injectable()
 export class RoomsService {
-  constructor(private readonly prismaService: PrismaService) { }
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly socketServerService: SocketServerService,
+  ) {}
 
-  async create(userId: number, roomName: string) {
-    const roomCreated = await this.prismaService.room.create({
-      data: { name: roomName, }
-    });
-    await this.join(userId, roomCreated.id);
+  async findMany() {
+    return this.prismaService.room.findMany();
+  }
+
+  async create(userId: number, createRoomDto: CreateRoomDto) {
+    const roomCreated = await this.prismaService.room
+      .create({
+        data: {
+          name: createRoomDto.name,
+          users: {
+            create: [{ user: { connect: { id: userId } } }],
+          },
+        },
+      })
+      .catch(() => {
+        throw new Error();
+      });
     return roomCreated;
   }
 
-  async join(userId: number, roomId: number) {
-    return this.prismaService.room.update({
-      where: { id: roomId },
-      data: {
-        users: {
-          connectOrCreate: {
-            where: { userId_roomId: { roomId: roomId, userId: userId } },
-            create: { User: { connect: { id: userId } } }
-          }
-        }
-      }
-    })
-      .catch(notFound)
-  }
-
-  async leave(userId: number, roomId: number){
-    const requestedRoom = await this.prismaService.room.findUnique({ where: { id: roomId } })
-    if (requestedRoom === null) return undefined;
-    return this.prismaService.userRoomRelation.delete({
-      where: { userId_roomId: { userId: userId, roomId: roomId } },
-    })
-      .catch(() => null)
-  }
-
   async findOne(roomId: number) {
-    return this.prismaService.room.findUniqueOrThrow({ where: { id: roomId } })
-      .catch(() => undefined);
+    return this.prismaService.room
+      .findUniqueOrThrow({ where: { id: roomId } })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async update(roomId: number, updateRoomDto: UpdateRoomDto) {
+    return this.prismaService.room
+      .update({
+        where: { id: roomId },
+        data: updateRoomDto,
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
   }
 
   async getMessages(roomId: number) {
-    return this.prismaService.room.findUniqueOrThrow({
-      where: { id: roomId },
-      include: { messages: true }
-    })
-      .then((room) => room.messages)
-      .catch(() => null);
+    return this.prismaService.message
+      .findMany({
+        where: { roomId: { equals: roomId } },
+        include: { user: true },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
   }
 
-  async delete(roomId: number): Promise<Room> | null {
-    return this.prismaService.room.delete({ where: { id: roomId } })
-      .catch(() => null);
+  async getUsers(roomId: number) {
+    const selectUserFields = {
+      avatarUrl: true,
+      id: true,
+      pseudonym: true,
+      username: true,
+    };
+    return this.prismaService.room
+      .findUniqueOrThrow({
+        where: { id: roomId },
+        include: {
+          users: {
+            include: { user: { select: selectUserFields } },
+          },
+          messages: true,
+        },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      })
+      .then((room) => room.users.map((user) => user.user));
   }
 
+  async addUser(roomId: number, userId: number) {
+    return this.prismaService.room
+      .update({
+        where: { id: roomId },
+        data: {
+          users: {
+            connect: { userId_roomId: { roomId, userId } },
+          },
+        },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async removeUser(roomId: number, userId: number) {
+    return this.prismaService.room
+      .update({
+        where: { id: roomId },
+        data: {
+          users: {
+            disconnect: { userId_roomId: { roomId: roomId, userId: userId } },
+          },
+        },
+      })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
+
+  async remove(roomId: number) {
+    return this.prismaService.room
+      .delete({ where: { id: roomId } })
+      .catch(() => {
+        throw new EntityNotFoundError();
+      });
+  }
 }
