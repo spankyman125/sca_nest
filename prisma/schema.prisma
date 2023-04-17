@@ -26,6 +26,7 @@ model Room {
   messages  Message[]
   users     UserRoomRelation[]
   avatarUrl String             @default("static/images/avatars/room-default.png")
+  private Boolean @default(false)
 }
 
 model Message {
@@ -43,7 +44,7 @@ model UserRoomRelation {
   roomId  Int
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  private Boolean @default(false)
+  // private Boolean @default(false)
   // joinedAt DateTime @default(now())
   // permissions UserRoomToPermission[]
 

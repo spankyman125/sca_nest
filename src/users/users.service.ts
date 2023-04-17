@@ -141,13 +141,33 @@ export class UsersService {
   }
 
   async addFriend(userId: number, friendId: number) {
-    return this.prismaService.friendsRelation
+    if (userId === friendId) throw new UnprocessableEntityError();
+    let [smallerId, biggerId] = [userId, friendId];
+    if (userId >= friendId) [smallerId, biggerId] = [friendId, userId];
+    const newFriendRelation = await this.prismaService.friendsRelation
       .create({
-        data: { userId, friendId },
+        data: { userId: smallerId, friendId: biggerId },
       })
-      .catch(() => {
-        throw new UnprocessableEntityError();
+      .catch((e) => {
+        if (e instanceof Prisma.PrismaClientKnownRequestError) {
+          if (e.code === 'P2002') throw new UnprocessableEntityError();
+          if (e.code === 'P2003') throw new EntityNotFoundError();
+        }
+        throw e;
       });
+    const newPrivateRoom = await this.prismaService.room.create({
+      data: {
+        private: true,
+        name: 'Private room',
+        users: {
+          create: [
+            { user: { connect: { id: smallerId } } },
+            { user: { connect: { id: biggerId } } },
+          ],
+        },
+      },
+    });
+    return newFriendRelation;
   }
 
   async removeFriend(id: number, friendId: number) {

@@ -110,16 +110,19 @@ export class UsersMeController {
     return this.usersService.getFriends(user.sub);
   }
 
-  @ApiOperation({ deprecated: true, summary: 'Add new friend' })
+  @ApiOperation({ summary: 'Add new friend' })
   @ApiResponse({ status: 201, description: 'New friend added' })
-  @ApiResponse({ status: 400, description: 'Friend not found' })
+  @ApiResponse({ status: 400, description: 'Friend already added|not found' })
   @Post('friends')
   async newFriendsSelf(
     @User() user: UserPayload,
     @Query('friendId', ParseIntPipe) friendId: number,
   ) {
-    return this.usersService.addFriend(user.sub, friendId).catch(() => {
-      throw new BadRequestException('Friend not found');
+    return this.usersService.addFriend(user.sub, friendId).catch((e) => {
+      if (e instanceof UnprocessableEntityError)
+        throw new BadRequestException('Friend already added');
+      if (e instanceof EntityNotFoundError)
+        throw new BadRequestException('Friend not found');
     });
   }
 }
