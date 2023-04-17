@@ -1,12 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { CryptModule } from 'src/crypt/crypt.module';
+import { PrismaModule } from 'src/prisma/prisma.module';
+import { UsersModule } from 'src/users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { CryptModule } from 'src/crypt/crypt.module';
-import { UsersModule } from 'src/users/users.module';
-import { PrismaModule } from 'src/prisma/prisma.module';
-import { JwtModule } from '@nestjs/jwt';
 import { jwtSecret } from './secret';
 
+@Global()
 @Module({
   controllers: [AuthController],
   providers: [AuthService],
@@ -17,10 +18,9 @@ import { jwtSecret } from './secret';
     JwtModule.register({
       global: true,
       secret: jwtSecret,
-      signOptions: { expiresIn: '3000s' }
+      signOptions: { expiresIn: '3000s' },
     }),
   ],
-  exports: [AuthService]
+  exports: [AuthService],
 })
-
-export class AuthModule { }
+export class AuthModule {}
