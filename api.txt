@@ -1,0 +1,67 @@
+api/users                       GET(200)(read users ?search ?pagination)                                     
+api/users                       POST(201, 400)(create user)(public)                                    
+
+api/users/me                    GET(200)(read my user)                                   
+api/users/me                    PATCH(200, 400)(update my user)                   
+  --websocket event "users:updated" {userId, user} to: all friends, all users in his rooms
+api/users/me                    DELETE(200)(delete my user)                       
+  --websocket event "users:deleted" {userId}
+api/users/me/rooms              GET(200)(read my rooms)                                            
+api/users/me/rooms              POST(201, 400)(join room self)                    
+  --websocket event "rooms:users:joined" {userId, roomId, user} 
+api/users/me/rooms/:id          DELETE(200, 404)(leave room self)                 
+  --websocket event "rooms:users:left" {userId, roomId}
+api/users/me/messages           GET(200)(read my messages)                                 
+api/users/me/friends            GET(200)(read my friends)                                  
+api/users/me/friends/:id        DELETE(200, 404)(delete friend)                   
+  --websocket event "friends:removed" {friendId}
+
+api/users/:id                   GET(200, 404)(read user by id)                                              
+api/users/:id/rooms             GET(200, 404)(read user's rooms)                                              
+api/users/:id/friends           GET(200, 404)(read user's friends)                                              
+
+api/rooms                       GET(200)(read rooms ?search ?pagination)                                              
+api/rooms                       POST(201, 400)(create room)                       
+  --websocket event
+api/rooms/:id                   GET(200, 404)(read room)                                 
+api/rooms/:id                   PATCH(200, 404, 400,403)(update room info)        
+  --websocket event "rooms:updated" {roomId, room} to: all in room, except: sender 
+api/rooms/:id                   DELETE(200)(delete room)                          
+  --websocket event "rooms:deleted" {roomId} to: all in room, except: sender 
+api/rooms/:id/messages          GET(200, 404)(read messages in room ?pagination)                                 
+api/rooms/:id/users             GET(200, 404)(read users in room ?pagination)                                  
+api/rooms/:id/users             POST(201, 400)(add user to room)                  
+  --websocket event "rooms:users:joined" {roomId, userId, user} to: all in room, except: sender 
+api/rooms/:id/users/:id         DELETE(200, 404)(remove user from room)           
+  --websocket event "rooms:users:removed" to: all in room, except: sender 
+
+
+api/messages POST(201,400,403,404)            
+  --websocket event "messages:new" {roomId, message} to: all in room, except: sender 
+api/messages/:id PATCH(200,400,403,404)       
+  --websocket event "messages:edited" {roomId, message} to:all in room, except:sender
+
+
+
+??
+api/rooms-users/
+api/rooms-users/
+
+todo:
+api/rooms/:id/users/:id/permissions       GET(200, 404)(get user permission for room)
+api/rooms/:id/users/:id/permissions       POST(200, 404)(add user permission for room)
+api/rooms/:id/users/:id/permissions/:id   DELETE(200, 404)(remove user permission for room)  
+
+ws events
+room_permissions
+validation
+
+rooms:
+onUserConnected - join all user's rooms 
+
+room_{roomId}
+
+friends:
+onUserConnected - join all friend's rooms && join self room 
+
+friends_{userId}
