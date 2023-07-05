@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { MessagesModule } from './messages/messages.module';
+import { AppGateway } from './app.gateway';
 import { AuthModule } from './auth/auth.module';
-import { CryptService } from './crypt/crypt.service';
 import { CryptModule } from './crypt/crypt.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { SocketModule } from './socket/socket.module';
+import { UsersModule } from './users/users.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -16,9 +15,10 @@ import { RoomsModule } from './rooms/rooms.module';
     MessagesModule,
     AuthModule,
     CryptModule,
-    RoomsModule
+    RoomsModule,
+    SocketModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, CryptService],
+  controllers: [],
+  providers: [AppGateway],
 })
 export class AppModule {}
