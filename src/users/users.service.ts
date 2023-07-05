@@ -83,9 +83,17 @@ export class UsersService {
           friendWith: {
             include: { Friend: { select: selectFriendFields } },
           },
+          friendTo: {
+            include: { Friend: { select: selectFriendFields } },
+          },
         },
       })
-      .then((user) => user.friendWith.map((friend) => friend.Friend))
+      .then((user) => {
+        return [
+          ...user.friendTo.map((friend) => friend.Friend),
+          ...user.friendWith.map((friend) => friend.Friend),
+        ];
+      })
       .catch(() => {
         throw new EntityNotFoundError();
       });
