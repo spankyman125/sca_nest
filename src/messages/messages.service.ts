@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateMessageDto } from 'src/messages/dto/create-message.dto';
 import { UpdateMessageDto } from 'src/messages/dto/update-message.dto';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { EntityNotFoundError } from 'src/shared/errors/business-errors';
-import { SocketServerService } from 'src/socket/socket.service';
+import { MessagesEmitterService } from './messages.emitter.service';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly socketServerService: SocketServerService,
+    private readonly emitter: MessagesEmitterService,
   ) {}
 
   async createMessage(
@@ -17,7 +17,7 @@ export class MessagesService {
     userId: number,
     { content }: CreateMessageDto,
   ) {
-    return this.prismaService.message
+    const newMessage = await this.prismaService.message
       .create({
         data: {
           content,
@@ -28,6 +28,7 @@ export class MessagesService {
       .catch(() => {
         throw new EntityNotFoundError();
       });
+    this.emitter.messageNew(userId, roomId, newMessage);
   }
 
   async updateMessage(
@@ -35,7 +36,7 @@ export class MessagesService {
     messageId: number,
     { content }: UpdateMessageDto,
   ) {
-    return this.prismaService.message
+    const updatedMessage = await this.prismaService.message
       .update({
         where: { id: messageId },
         data: { content },
@@ -43,5 +44,7 @@ export class MessagesService {
       .catch(() => {
         throw new EntityNotFoundError();
       });
+    this.emitter.messageEdit(userId, updatedMessage);
+    return updatedMessage;
   }
 }
