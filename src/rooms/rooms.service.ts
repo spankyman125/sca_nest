@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { EntityNotFoundError } from 'src/shared/errors/business-errors';
-import { SocketServerService } from 'src/socket/socket.service';
+import { SocketService } from 'src/socket/socket.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
@@ -9,7 +9,7 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 export class RoomsService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly socketServerService: SocketServerService,
+    private readonly socketServerService: SocketService,
   ) {}
 
   async findMany() {
