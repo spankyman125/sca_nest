@@ -4,12 +4,13 @@ import { EntityNotFoundError } from 'src/shared/errors/business-errors';
 import { SocketService } from 'src/socket/socket.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { RoomsEmitterService } from './rooms.emitter.service';
 
 @Injectable()
 export class RoomsService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly socketServerService: SocketService,
+    private readonly emitter: RoomsEmitterService,
   ) {}
 
   async findMany() {
@@ -86,7 +87,7 @@ export class RoomsService {
   }
 
   async addUser(roomId: number, userId: number) {
-    return this.prismaService.room
+    const joinedUser = await this.prismaService.room
       .update({
         where: { id: roomId },
         data: {
@@ -98,10 +99,12 @@ export class RoomsService {
       .catch(() => {
         throw new EntityNotFoundError();
       });
+    this.emitter.userJoined(userId, roomId);
+    return joinedUser;
   }
 
   async removeUser(roomId: number, userId: number) {
-    return this.prismaService.room
+    const removedUser = await this.prismaService.room
       .update({
         where: { id: roomId },
         data: {
@@ -113,6 +116,8 @@ export class RoomsService {
       .catch(() => {
         throw new EntityNotFoundError();
       });
+    this.emitter.userLeft(userId, roomId);
+    return removedUser;
   }
 
   async remove(roomId: number) {
