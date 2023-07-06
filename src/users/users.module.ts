@@ -5,10 +5,11 @@ import { UsersController } from './controllers/users.controller';
 import { UsersIdController } from './controllers/users-id.controller';
 import { UsersMeController } from './controllers/users-me.controller';
 import { UsersService } from './users.service';
+import { UsersEmitterService } from './user.emitter.service';
 
 @Module({
   controllers: [UsersController, UsersMeController, UsersIdController],
-  providers: [UsersService],
+  providers: [UsersService, UsersEmitterService],
   imports: [CryptModule, PrismaModule],
   exports: [UsersService],
 })

@@ -9,12 +9,14 @@ import {
 } from 'src/shared/errors/business-errors';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UsersEmitterService } from './user.emitter.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly cryptService: CryptService,
     private readonly prismaService: PrismaService,
+    private readonly emitter: UsersEmitterService,
   ) {}
 
   async findMany() {
@@ -38,7 +40,7 @@ export class UsersService {
   }
 
   async update(userId: number, { pseudonym }: UpdateUserDto) {
-    return this.prismaService.user
+    const updatedUser = await this.prismaService.user
       .update({
         where: { id: userId },
         data: { pseudonym },
@@ -46,6 +48,8 @@ export class UsersService {
       .catch(() => {
         throw new EntityNotFoundError();
       });
+    this.emitter.userUpdated(userId, updatedUser);
+    return updatedUser;
   }
 
   async getRooms(userId: number) {
