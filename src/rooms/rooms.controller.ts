@@ -3,7 +3,6 @@ import {
   Controller,
   Delete,
   Get,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -45,9 +44,7 @@ export class RoomsController {
   @ApiResponse({ status: 404, description: 'Room not found' })
   @Get(':id')
   async get(@Param('id', ParseIntPipe) roomId: number) {
-    return this.roomsService.findOne(roomId).catch(() => {
-      throw new NotFoundException('Room not found');
-    });
+    return this.roomsService.findOne(roomId);
   }
 
   @ApiOperation({ summary: 'Update room with specified id' })
@@ -58,9 +55,7 @@ export class RoomsController {
     @Param('id', ParseIntPipe) roomId: number,
     @Body() updateRoomDto: UpdateRoomDto,
   ) {
-    return this.roomsService.update(roomId, updateRoomDto).catch(() => {
-      throw new NotFoundException('Room not found');
-    });
+    return this.roomsService.update(roomId, updateRoomDto);
   }
 
   @ApiOperation({ summary: 'Delete room with specified id' })
@@ -68,9 +63,7 @@ export class RoomsController {
   @ApiResponse({ status: 404, description: 'Room not found' })
   @Delete(':id')
   async delete(@Param('id', ParseIntPipe) roomId: number) {
-    return await this.roomsService.remove(roomId).catch(() => {
-      throw new NotFoundException('Room not found');
-    });
+    return await this.roomsService.remove(roomId);
   }
 
   @ApiOperation({ summary: 'Get room messages with specified id' })
@@ -78,9 +71,7 @@ export class RoomsController {
   @ApiResponse({ status: 404, description: 'Room not found' })
   @Get(':id/messages')
   async getMessages(@Param('id', ParseIntPipe) roomId: number) {
-    return await this.roomsService.getMessages(roomId).catch(() => {
-      throw new NotFoundException('Room not found');
-    });
+    return await this.roomsService.getMessages(roomId);
   }
 
   @ApiOperation({ summary: "Get room's users with specified id" })
@@ -88,34 +79,29 @@ export class RoomsController {
   @ApiResponse({ status: 404, description: 'Room not found' })
   @Get(':id/users')
   async getUsers(@Param('id', ParseIntPipe) roomId: number) {
-    return await this.roomsService.getUsers(roomId).catch(() => {
-      throw new NotFoundException('Room not found');
-    });
+    return await this.roomsService.getUsers(roomId);
   }
 
   @ApiOperation({ summary: 'Add user to room with specified id' })
-  @ApiResponse({ status: 200, description: 'User added to room' })
+  @ApiResponse({ status: 201, description: 'User added to room' })
   @ApiResponse({ status: 400, description: 'User of room not found' })
+  @ApiResponse({ status: 404, description: 'User already joined room' })
   @Post(':id/users')
   async addUser(
     @Param('id', ParseIntPipe) roomId: number,
     @Body() addUserDto: AddUserDto,
   ) {
-    return await this.roomsService.addUser(roomId, addUserDto.id).catch(() => {
-      throw new NotFoundException('User of room not found');
-    });
+    return await this.roomsService.addUser(roomId, addUserDto.id);
   }
 
   @ApiOperation({ summary: 'Remove user from room with specified id' })
   @ApiResponse({ status: 200, description: 'User removed from room' })
   @ApiResponse({ status: 404, description: 'User of room not found' })
-  @Delete(':id/users/:userId')
+  @Delete(':roomId/users/:userId')
   async removeUser(
     @Param('roomId', ParseIntPipe) roomId: number,
     @Param('userId', ParseIntPipe) userId: number,
   ) {
-    return await this.roomsService.removeUser(roomId, userId).catch(() => {
-      throw new NotFoundException('User of room not found');
-    });
+    return await this.roomsService.removeUser(roomId, userId);
   }
 }

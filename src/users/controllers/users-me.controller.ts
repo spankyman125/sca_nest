@@ -13,13 +13,11 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/auth/auth.decorator';
-import {
-  EntityNotFoundError,
-  UnprocessableEntityError,
-} from 'src/shared/errors/business-errors';
+import { UpdateUserDto } from '../dto/update-user.dto';
 import { User, UserPayload } from '../user.decorator';
 import { UsersService } from '../users.service';
-import { UpdateUserDto } from '../dto/update-user.dto';
+import { Prisma } from '@prisma/client';
+import { UnprocessableEntity } from 'src/shared/errors/business-errors';
 
 @Auth()
 @ApiTags('users/me')
@@ -28,7 +26,7 @@ export class UsersMeController {
   constructor(private readonly usersService: UsersService) {}
 
   @ApiOperation({ summary: 'Get self user' })
-  @ApiResponse({ status: 201, description: 'Self User received' })
+  @ApiResponse({ status: 200, description: 'Self User received' })
   @Get('')
   async findSelf(@User() user: UserPayload) {
     return this.usersService.findOneById(user.sub);
@@ -36,7 +34,6 @@ export class UsersMeController {
 
   @ApiOperation({ summary: 'Update self user' })
   @ApiResponse({ status: 200, description: 'User updated' })
-  @ApiResponse({ status: 400, description: 'User not updated, wrong data' })
   @Patch('')
   async updateUserSelf(
     @User() user: UserPayload,
@@ -76,10 +73,13 @@ export class UsersMeController {
     @Query('roomId', ParseIntPipe) roomId: number,
   ) {
     return this.usersService.addToRoom(user.sub, roomId).catch((e) => {
-      if (e instanceof UnprocessableEntityError)
-        throw new BadRequestException('Room already joined');
-      if (e instanceof EntityNotFoundError)
-        throw new NotFoundException('Room not found');
+      if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2002')
+          throw new BadRequestException('Room already joined');
+        else if (e.code === 'P2003')
+          throw new NotFoundException('Room not found');
+        throw e;
+      }
     });
   }
 
@@ -91,9 +91,7 @@ export class UsersMeController {
     @User() user: UserPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.usersService.leaveRoom(user.sub, id).catch(() => {
-      throw new NotFoundException('Room not joined');
-    });
+    return this.usersService.leaveRoom(user.sub, id);
   }
 
   @ApiOperation({ summary: 'Get self messages' })
@@ -112,17 +110,33 @@ export class UsersMeController {
 
   @ApiOperation({ summary: 'Add new friend' })
   @ApiResponse({ status: 201, description: 'New friend added' })
-  @ApiResponse({ status: 400, description: 'Friend already added|not found' })
+  @ApiResponse({ status: 400, description: 'Friend already added' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   @Post('friends')
   async newFriendsSelf(
     @User() user: UserPayload,
     @Query('friendId', ParseIntPipe) friendId: number,
   ) {
     return this.usersService.addFriend(user.sub, friendId).catch((e) => {
-      if (e instanceof UnprocessableEntityError)
-        throw new BadRequestException('Friend already added');
-      if (e instanceof EntityNotFoundError)
-        throw new BadRequestException('Friend not found');
+      if (e instanceof UnprocessableEntity) {
+        throw new BadRequestException('Cannot add yourself as a friend');
+      } else if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        if (e.code === 'P2003') throw new NotFoundException('User not found');
+        else if (e.code === 'P2002')
+          throw new BadRequestException('Friend already added');
+      }
+      throw e;
     });
+  }
+
+  @ApiOperation({ summary: 'Remove specified friend' })
+  @ApiResponse({ status: 200, description: 'Friend removed' })
+  @ApiResponse({ status: 404, description: 'Friend not found' })
+  @Delete('friends/:id')
+  async removeFriend(
+    @User() user: UserPayload,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.usersService.removeFriend(user.sub, id);
   }
 }

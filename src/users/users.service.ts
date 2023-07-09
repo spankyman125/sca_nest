@@ -1,12 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { CryptService } from 'src/crypt/crypt.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import {
-  EntityNotFoundError,
-  UnprocessableEntityError,
-  UsernameExists,
-} from 'src/shared/errors/business-errors';
+import { UnprocessableEntity } from 'src/shared/errors/business-errors';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UsersEmitterService } from './user.emitter.service';
@@ -30,24 +25,16 @@ export class UsersService {
       pseudonym: pseudonym,
       passwordHash: hash,
     };
-    return this.prismaService.user
-      .create({
-        data: newUser,
-      })
-      .catch(() => {
-        throw new UsernameExists();
-      });
+    return this.prismaService.user.create({
+      data: newUser,
+    });
   }
 
   async update(userId: number, { pseudonym }: UpdateUserDto) {
-    const updatedUser = await this.prismaService.user
-      .update({
-        where: { id: userId },
-        data: { pseudonym },
-      })
-      .catch(() => {
-        throw new EntityNotFoundError();
-      });
+    const updatedUser = await this.prismaService.user.update({
+      where: { id: userId },
+      data: { pseudonym },
+    });
     this.emitter.userUpdated(userId, updatedUser);
     return updatedUser;
   }
@@ -57,19 +44,19 @@ export class UsersService {
       .findUniqueOrThrow({
         where: { id: userId },
         include: {
-          rooms: { include: { room: { select: { name: true, id: true } } } },
+          rooms: {
+            include: {
+              room: { select: { name: true, id: true, avatarUrl: true } },
+            },
+          },
         },
       })
-      .then((user) => user.rooms.map((room) => room.room))
-      .catch(() => {
-        throw new EntityNotFoundError();
-      });
+      .then((user) => user.rooms.map((room) => room.room));
   }
 
   async getMessages(userId: number) {
-    return this.prismaService.user.findUniqueOrThrow({
-      where: { id: userId },
-      include: { messages: true },
+    return this.prismaService.message.findMany({
+      where: { userId: userId },
     });
   }
 
@@ -97,77 +84,72 @@ export class UsersService {
           ...user.friendTo.map((friend) => friend.Friend),
           ...user.friendWith.map((friend) => friend.Friend),
         ];
-      })
-      .catch(() => {
-        throw new EntityNotFoundError();
       });
   }
 
   async addToRoom(userId: number, roomId: number) {
-    return this.prismaService.userRoomRelation
-      .create({
-        data: { userId, roomId },
-      })
-      .catch((e) => {
-        if (e instanceof Prisma.PrismaClientKnownRequestError) {
-          if (e.code === 'P2002') throw new UnprocessableEntityError();
-          if (e.code === 'P2003') throw new EntityNotFoundError();
-        }
-        throw e;
-      });
+    return this.prismaService.userRoomRelation.create({
+      data: { userId, roomId },
+    });
   }
 
   async leaveRoom(userId: number, roomId: number) {
     return this.prismaService.userRoomRelation
       .delete({
+        include: { room: true },
         where: { userId_roomId: { roomId, userId } },
       })
-      .catch((e) => {
-        if (e instanceof Prisma.PrismaClientKnownRequestError) {
-          if (e.code === 'P2025') throw new EntityNotFoundError();
-        }
-        throw e;
-      });
+      .then((relation) => relation.room);
   }
 
   async findOneById(id: number) {
-    return this.prismaService.user
-      .findUniqueOrThrow({ where: { id: id } })
-      .catch(() => {
-        throw new EntityNotFoundError();
-      });
-  }
-
-  async findOneByUsername(username: string) {
-    return this.prismaService.user
-      .findUnique({ where: { username: username } })
-      .catch(() => {
-        throw new EntityNotFoundError();
-      });
-  }
-
-  async remove(id: number) {
-    return this.prismaService.user.delete({ where: { id: id } }).catch(() => {
-      throw new EntityNotFoundError();
+    return this.prismaService.user.findUniqueOrThrow({
+      where: { id: id },
+      select: {
+        id: true,
+        avatarUrl: true,
+        isOnline: true,
+        pseudonym: true,
+        username: true,
+      },
     });
   }
 
+  async findOneByUsername(username: string) {
+    return this.prismaService.user.findUnique({
+      where: { username: username },
+      select: {
+        id: true,
+        avatarUrl: true,
+        isOnline: true,
+        pseudonym: true,
+        username: true,
+      },
+    });
+  }
+
+  async remove(id: number) {
+    return this.prismaService.user.delete({ where: { id: id } });
+  }
+
   async addFriend(userId: number, friendId: number) {
-    if (userId === friendId) throw new UnprocessableEntityError();
-    let [smallerId, biggerId] = [userId, friendId];
-    if (userId >= friendId) [smallerId, biggerId] = [friendId, userId];
-    const newFriendRelation = await this.prismaService.friendsRelation
-      .create({
-        data: { userId: smallerId, friendId: biggerId },
-      })
-      .catch((e) => {
-        if (e instanceof Prisma.PrismaClientKnownRequestError) {
-          if (e.code === 'P2002') throw new UnprocessableEntityError();
-          if (e.code === 'P2003') throw new EntityNotFoundError();
-        }
-        throw e;
-      });
-    const newPrivateRoom = await this.prismaService.room.create({
+    const selectFriendFields = {
+      avatarUrl: true,
+      id: true,
+      username: true,
+      pseudonym: true,
+    };
+    if (userId === friendId) throw new UnprocessableEntity();
+    const [smallerId, biggerId] = [
+      Math.min(userId, friendId),
+      Math.max(userId, friendId),
+    ];
+    const newFriendRelation = await this.prismaService.friendsRelation.create({
+      data: { userId: smallerId, friendId: biggerId },
+      include: { Friend: { select: selectFriendFields } },
+    });
+
+    await this.prismaService.room.create({
       data: {
         private: true,
         name: 'Private room',
@@ -179,16 +161,26 @@ export class UsersService {
         },
       },
     });
-    return newFriendRelation;
+    return newFriendRelation.Friend;
   }
 
-  async removeFriend(id: number, friendId: number) {
+  async removeFriend(userId: number, friendId: number) {
+    const selectFriendFields = {
+      avatarUrl: true,
+      id: true,
+      username: true,
+      pseudonym: true,
+    };
     return this.prismaService.friendsRelation
       .delete({
-        where: { userId_friendId: { friendId: friendId, userId: id } },
+        where: {
+          userId_friendId: {
+            userId: Math.min(userId, friendId),
+            friendId: Math.max(userId, friendId),
+          },
+        },
+        include: { Friend: { select: selectFriendFields } },
       })
-      .catch(() => {
-        throw new EntityNotFoundError();
-      });
+      .then((relation) => relation.Friend);
   }
 }

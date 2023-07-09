@@ -1,10 +1,4 @@
-import {
-  Controller,
-  Get,
-  NotFoundException,
-  Param,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/auth/auth.decorator';
 import { User, UserPayload } from '../user.decorator';
@@ -21,9 +15,7 @@ export class UsersIdController {
   @ApiResponse({ status: 404, description: 'User by id not found' })
   @Get('')
   findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.findOneById(id).catch(() => {
-      throw new NotFoundException('User not found');
-    });
+    return this.usersService.findOneById(id);
   }
 
   @ApiOperation({ summary: "Get user's rooms" })
@@ -31,9 +23,7 @@ export class UsersIdController {
   @ApiResponse({ status: 404, description: 'User not found' })
   @Get('rooms')
   readRooms(@Param('id', ParseIntPipe) id: number) {
-    return this.usersService.getRooms(id).catch(() => {
-      throw new NotFoundException('User not found');
-    });
+    return this.usersService.getRooms(id);
   }
 
   @ApiOperation({ summary: "Get user's friends" })
@@ -44,8 +34,6 @@ export class UsersIdController {
     @User() user: UserPayload,
     @Param('id', ParseIntPipe) id: number,
   ) {
-    return this.usersService.getFriends(id).catch(() => {
-      throw new NotFoundException('User not found');
-    });
+    return this.usersService.getFriends(id);
   }
 }

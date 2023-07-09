@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Patch,
@@ -9,10 +8,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Auth } from 'src/auth/auth.decorator';
 import { User, UserPayload } from 'src/users/user.decorator';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { MessagesService } from './messages.service';
-import { Auth } from 'src/auth/auth.decorator';
 
 @Auth()
 @ApiTags('messages')
@@ -21,7 +20,7 @@ export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   @ApiOperation({ summary: 'Create message in room with specified id' })
-  @ApiResponse({ status: 200, description: 'Message created' })
+  @ApiResponse({ status: 201, description: 'Message created' })
   // @ApiResponse({ status: 400, description: 'Message not created, wrong data' })
   // @ApiResponse({ status: 403, description: 'Not enough permissions' })
   @ApiResponse({ status: 404, description: 'Room not found' })
@@ -31,11 +30,11 @@ export class MessagesController {
     @User() user: UserPayload,
     @Body() createMessageDto: CreateMessageDto,
   ) {
-    return await this.messagesService
-      .createMessage(roomId, user.sub, createMessageDto)
-      .catch(() => {
-        throw new NotFoundException('Room not found');
-      });
+    return await this.messagesService.createMessage(
+      roomId,
+      user.sub,
+      createMessageDto,
+    );
   }
 
   @ApiOperation({ summary: 'Update message in room with specified id' })
@@ -49,10 +48,10 @@ export class MessagesController {
     @User() user: UserPayload,
     @Body() updateMessageDto: CreateMessageDto,
   ) {
-    return await this.messagesService
-      .updateMessage(user.sub, messageId, updateMessageDto)
-      .catch(() => {
-        throw new NotFoundException('Room not found');
-      });
+    return await this.messagesService.updateMessage(
+      user.sub,
+      messageId,
+      updateMessageDto,
+    );
   }
 }
