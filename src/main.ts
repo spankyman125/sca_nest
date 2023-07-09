@@ -6,6 +6,7 @@ import { PrismaClientExceptionFilter } from './shared/filters/prisma.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
+  app.enableCors();
   const config = new DocumentBuilder().addBearerAuth()
     .setTitle('SCA_API')
     .setDescription('API definition for sca app')
