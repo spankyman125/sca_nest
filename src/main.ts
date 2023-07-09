@@ -7,7 +7,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.enableCors();
-  const config = new DocumentBuilder().addBearerAuth()
+  const config = new DocumentBuilder()
+    .addBearerAuth()
     .setTitle('SCA_API')
     .setDescription('API definition for sca app')
     .setVersion('0.1')

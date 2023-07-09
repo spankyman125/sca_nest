@@ -18,6 +18,7 @@ model User {
   rooms        UserRoomRelation[]
   friendWith   FriendsRelation[]  @relation("friend")
   friendTo     FriendsRelation[]  @relation("user")
+  refreshToken String             @default("")
 }
 
 model Room {
