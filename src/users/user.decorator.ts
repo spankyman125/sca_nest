@@ -14,6 +14,6 @@ export const User = createParamDecorator(
 );
 
 export interface UserPayload {
-  username: string,
-  sub: number
+  username: string;
+  sub: number;
 }
