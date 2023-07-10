@@ -2,7 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignInDto } from './dto/sign-in.dto';
-import { RefreshDto } from './dto/sign-in.dto copy';
+import { RefreshDto } from './dto/refresh.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -18,6 +18,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   refreshTokens(@Body() refreshDto: RefreshDto) {
-    return this.authService.refreshTokens(refreshDto.refreshToken);
+    return this.authService.refreshTokens(refreshDto.refresh_token);
   }
 }

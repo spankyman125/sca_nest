@@ -33,7 +33,7 @@ export class AuthService {
   }
 
   async signIn(username: string, passwordPlain: string) {
-    const user = await this.prismaService.user.findUniqueOrThrow({
+    const user = await this.prismaService.user.findFirst({
       where: { username: username },
       select: {
         id: true,
