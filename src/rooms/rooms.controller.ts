@@ -1,14 +1,16 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/auth/auth.decorator';
 import { User, UserPayload } from 'src/users/user.decorator';
 import { AddUserDto } from './dto/add-user.dto';
@@ -69,9 +71,15 @@ export class RoomsController {
   @ApiOperation({ summary: 'Get room messages with specified id' })
   @ApiResponse({ status: 200, description: 'Room messages received' })
   @ApiResponse({ status: 404, description: 'Room not found' })
+  @ApiQuery({ name: 'skip', required: false, type: Number })
+  @ApiQuery({ name: 'take', required: false, type: Number })
   @Get(':id/messages')
-  async getMessages(@Param('id', ParseIntPipe) roomId: number) {
-    return await this.roomsService.getMessages(roomId);
+  async getMessages(
+    @Param('id', ParseIntPipe) roomId: number,
+    @Query('skip', new DefaultValuePipe(0), ParseIntPipe) skip?: number,
+    @Query('take', new DefaultValuePipe(50), ParseIntPipe) take?: number,
+  ) {
+    return await this.roomsService.getMessages(roomId, skip, take);
   }
 
   @ApiOperation({ summary: "Get room's users with specified id" })

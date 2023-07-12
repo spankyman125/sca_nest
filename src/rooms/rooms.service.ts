@@ -12,7 +12,17 @@ export class RoomsService {
   ) {}
 
   async findMany() {
-    return this.prismaService.room.findMany();
+    return this.prismaService.room.findMany({
+      include: {
+        messages: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: { select: { avatarUrl: true, id: true, pseudonym: true } },
+          },
+        },
+      },
+    });
   }
 
   async create(userId: number, createRoomDto: CreateRoomDto) {
@@ -30,7 +40,14 @@ export class RoomsService {
   async findOne(roomId: number) {
     return this.prismaService.room.findUniqueOrThrow({
       where: { id: roomId },
-      include: { messages: { include: { user: true } }, users: true },
+      include: {
+        messages: {
+          include: {
+            user: { select: { avatarUrl: true, id: true, pseudonym: true } },
+          },
+        },
+        users: true,
+      },
     });
   }
 
@@ -41,10 +58,15 @@ export class RoomsService {
     });
   }
 
-  async getMessages(roomId: number) {
+  async getMessages(roomId: number, skip = 0, take = 50) {
     return this.prismaService.message.findMany({
       where: { roomId: { equals: roomId } },
-      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+      skip: skip,
+      take: take,
+      include: {
+        user: { select: { avatarUrl: true, id: true, pseudonym: true } },
+      },
     });
   }
 
