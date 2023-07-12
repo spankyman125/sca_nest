@@ -46,7 +46,19 @@ export class UsersService {
         include: {
           rooms: {
             include: {
-              room: { select: { name: true, id: true, avatarUrl: true } },
+              room: {
+                include: {
+                  messages: {
+                    take: 1,
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                      user: {
+                        select: { avatarUrl: true, id: true, pseudonym: true },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
