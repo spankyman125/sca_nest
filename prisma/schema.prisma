@@ -13,7 +13,7 @@ model User {
   passwordHash String
   pseudonym    String
   isOnline     Boolean            @default(false)
-  avatarUrl    String             @default("static/images/avatars/user-default.png")
+  avatarUrl    String             @default("static/images/users/avatars/default.png")
   messages     Message[]
   rooms        UserRoomRelation[]
   friendWith   FriendsRelation[]  @relation("friend")
@@ -26,7 +26,7 @@ model Room {
   name      String             @default("New Room")
   messages  Message[]
   users     UserRoomRelation[]
-  avatarUrl String             @default("static/images/avatars/room-default.png")
+  avatarUrl String             @default("static/images/rooms/avatars/default.png")
   private Boolean @default(false)
 }
 
