@@ -25,6 +25,12 @@ export class RoomsService {
     });
   }
 
+  async search(name?: string) {
+    return this.prismaService.room.findMany({
+      where: { name: { contains: name }, private: { not: { equals: true } } },
+    });
+  }
+
   async create(userId: number, createRoomDto: CreateRoomDto) {
     const roomCreated = await this.prismaService.room.create({
       data: {

@@ -31,6 +31,15 @@ export class RoomsController {
     return this.roomsService.findMany();
   }
 
+  @ApiOperation({ summary: 'Search rooms' })
+  @ApiResponse({ status: 200, description: 'List of rooms received' })
+  @ApiQuery({ name: 'name', required: false, type: String })
+  @Auth()
+  @Get('/search')
+  async search(@Query('name') name?: string) {
+    return this.roomsService.search(name);
+  }
+
   @ApiOperation({ summary: 'Create new room' })
   @ApiResponse({ status: 201, description: 'Room created' })
   @Post()
