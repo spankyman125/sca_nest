@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Auth } from 'src/auth/auth.decorator';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UsersService } from '../users.service';
@@ -15,6 +15,19 @@ export class UsersController {
   @Get()
   async findMany() {
     return this.usersService.findMany();
+  }
+
+  @ApiOperation({ summary: 'Search users' })
+  @ApiResponse({ status: 200, description: 'List of users received' })
+  @ApiQuery({ name: 'pseudonym', required: false, type: String })
+  @ApiQuery({ name: 'username', required: false, type: String })
+  @Auth()
+  @Get('/search')
+  async search(
+    @Query('pseudonym') pseudonym?: string,
+    @Query('username') username?: string,
+  ) {
+    return this.usersService.search(username, pseudonym);
   }
 
   @ApiOperation({ summary: 'Create user' })

@@ -18,6 +18,17 @@ export class UsersService {
     return this.prismaService.user.findMany();
   }
 
+  async search(username?: string, pseudonym?: string) {
+    return this.prismaService.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: username } },
+          { pseudonym: { contains: pseudonym } },
+        ],
+      },
+    });
+  }
+
   async create({ username, pseudonym, password }: CreateUserDto) {
     const hash = await this.cryptService.getHash(password);
     const newUser = {
@@ -78,6 +89,7 @@ export class UsersService {
       id: true,
       username: true,
       pseudonym: true,
+      isOnline: true,
     };
     return this.prismaService.user
       .findUniqueOrThrow({
