@@ -107,8 +107,9 @@ export class RoomsController {
   async addUser(
     @Param('id', ParseIntPipe) roomId: number,
     @Body() addUserDto: AddUserDto,
+    @User() user: UserPayload,
   ) {
-    return await this.roomsService.addUser(roomId, addUserDto.id);
+    return await this.roomsService.addUser(roomId, addUserDto.id, user.sub);
   }
 
   @ApiOperation({ summary: 'Remove user from room with specified id' })
@@ -118,7 +119,8 @@ export class RoomsController {
   async removeUser(
     @Param('roomId', ParseIntPipe) roomId: number,
     @Param('userId', ParseIntPipe) userId: number,
+    @User() user: UserPayload,
   ) {
-    return await this.roomsService.removeUser(roomId, userId);
+    return await this.roomsService.removeUser(roomId, userId, user.sub);
   }
 }

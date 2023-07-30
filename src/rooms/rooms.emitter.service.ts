@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SocketService } from 'src/socket/socket.service';
 
@@ -9,23 +10,17 @@ export class RoomsEmitterService {
     private readonly socketService: SocketService,
   ) {}
 
-  async userJoined(userId: number, roomId: number) {
+  async userJoined(userJoined: User, roomId: number, userId: number) {
     const socket = this.socketService.getSocket(userId);
     if (socket) {
-      const user = await this.prismaService.user.findUnique({
-        where: { id: userId },
-      });
-      socket.to(`rooms_${roomId}`).emit('rooms:users:joined', user);
+      socket.to(`rooms_${roomId}`).emit('rooms:joined', userJoined);
     }
   }
 
-  async userLeft(userId: number, roomId: number) {
+  async userLeft(userLeft: User, roomId: number, userId: number) {
     const socket = this.socketService.getSocket(userId);
     if (socket) {
-      const user = await this.prismaService.user.findUnique({
-        where: { id: userId },
-      });
-      socket.to(`rooms_${roomId}`).emit('rooms:users:left', user);
+      socket.to(`rooms_${roomId}`).emit('rooms:left', userLeft);
     }
   }
 }

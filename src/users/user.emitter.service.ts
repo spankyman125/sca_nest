@@ -18,10 +18,10 @@ export class UsersEmitterService {
           where: { userId: userId },
         },
       );
-      roomsRelations.forEach(({ roomId }) =>
-        socket.to(`rooms_${roomId}`).emit('rooms:users:joined', updatedUser),
-      );
-      socket.to(`friends_${userId}`).emit('rooms:users:joined', updatedUser);
+      roomsRelations.forEach(({ roomId }) => {
+        socket.to(`rooms_${roomId}`).emit('users:updated', updatedUser);
+      });
+      socket.to(`friends_${userId}`).emit('users:updated', updatedUser);
     }
   }
 }

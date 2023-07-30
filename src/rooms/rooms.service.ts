@@ -96,29 +96,35 @@ export class RoomsService {
       .then((room) => room.users.map((user) => user.user));
   }
 
-  async addUser(roomId: number, userId: number) {
-    const updatedRoom = await this.prismaService.room.update({
+  async addUser(roomId: number, userToAddId: number, userId: number) {
+    await this.prismaService.room.update({
       where: { id: roomId },
       data: {
         users: {
-          create: { user: { connect: { id: userId } } },
+          create: { user: { connect: { id: userToAddId } } },
         },
       },
     });
-    this.emitter.userJoined(userId, roomId);
-    return updatedRoom;
+    const userAdded = await this.prismaService.user.findUniqueOrThrow({
+      where: { id: userToAddId },
+    });
+    this.emitter.userJoined(userAdded, roomId, userId);
+    return userAdded;
   }
 
-  async removeUser(roomId: number, userId: number) {
-    const removedUser = await this.prismaService.room.update({
+  async removeUser(roomId: number, userToRemoveId: number, userId: number) {
+    await this.prismaService.room.update({
       where: { id: roomId },
       data: {
         users: {
-          delete: { userId_roomId: { roomId, userId } },
+          delete: { userId_roomId: { roomId, userId: userToRemoveId } },
         },
       },
     });
-    this.emitter.userLeft(userId, roomId);
+    const removedUser = await this.prismaService.user.findUniqueOrThrow({
+      where: { id: userToRemoveId },
+    });
+    this.emitter.userLeft(removedUser, roomId, userId);
     return removedUser;
   }
 
