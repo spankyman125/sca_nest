@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { CryptService } from 'src/crypt/crypt.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UnprocessableEntity } from 'src/shared/errors/business-errors';
@@ -51,6 +52,17 @@ export class UsersService {
   }
 
   async getRooms(userId: number) {
+    const lastMessage = {
+      messages: {
+        take: 1,
+        orderBy: { createdAt: Prisma.SortOrder.desc },
+        include: {
+          user: {
+            select: { avatarUrl: true, id: true, pseudonym: true },
+          },
+        },
+      },
+    };
     return this.prismaService.user
       .findUniqueOrThrow({
         where: { id: userId },
@@ -58,17 +70,7 @@ export class UsersService {
           rooms: {
             include: {
               room: {
-                include: {
-                  messages: {
-                    take: 1,
-                    orderBy: { createdAt: 'desc' },
-                    include: {
-                      user: {
-                        select: { avatarUrl: true, id: true, pseudonym: true },
-                      },
-                    },
-                  },
-                },
+                include: lastMessage,
               },
             },
           },
