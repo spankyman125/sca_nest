@@ -114,8 +114,9 @@ export class UsersService {
   }
 
   async addToRoom(userId: number, roomId: number) {
-    return this.prismaService.userRoomRelation.create({
-      data: { userId, roomId },
+    return this.prismaService.room.update({
+      where: { id: roomId },
+      data: { users: { create: { userId: userId } } },
     });
   }
 
