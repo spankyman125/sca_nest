@@ -36,3 +36,4 @@ lerna-debug.log*
 
 #Dev database
 prisma/dev.db
+public/
