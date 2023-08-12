@@ -10,10 +10,13 @@ export class RoomsEmitterService {
     private readonly socketService: SocketService,
   ) {}
 
-  async userJoined(userJoined: User, roomId: number, userId: number) {
-    const socket = this.socketService.getSocket(userId);
-    if (socket) {
-      socket.to(`rooms_${roomId}`).emit('rooms:joined', userJoined);
+  async roomCreated(roomId: number, initiatorId: number) {
+    const initiatorSocket = this.socketService.getSocket(initiatorId);
+    if (initiatorSocket) {
+      initiatorSocket.join(`rooms_${roomId}`);
+    }
+  }
+
     }
   }
 

@@ -4,13 +4,27 @@ import {
   DefaultValuePipe,
   Delete,
   Get,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseIntPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiConsumes,
+  ApiOperation,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import { randomUUID } from 'crypto';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { Auth } from 'src/auth/auth.decorator';
 import { User, UserPayload } from 'src/users/user.decorator';
 import { AddUserDto } from './dto/add-user.dto';
@@ -42,12 +56,30 @@ export class RoomsController {
 
   @ApiOperation({ summary: 'Create new room' })
   @ApiResponse({ status: 201, description: 'Room created' })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './public/static/images/rooms/avatars/',
+        filename: (req, file, cb) => {
+          cb(null, `${randomUUID()}${extname(file.originalname)}`);
+        },
+      }),
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
   @Post()
   async create(
     @User() user: UserPayload,
     @Body() createRoomDto: CreateRoomDto,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [new MaxFileSizeValidator({ maxSize: 1024 * 1024 })],
+        fileIsRequired: false,
+      }),
+    )
+    file?: Express.Multer.File,
   ) {
-    return await this.roomsService.create(user.sub, createRoomDto);
+    return await this.roomsService.create(user.sub, createRoomDto, file);
   }
 
   @ApiOperation({ summary: 'Get room with specified id' })

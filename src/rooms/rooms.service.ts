@@ -31,15 +31,21 @@ export class RoomsService {
     });
   }
 
-  async create(userId: number, createRoomDto: CreateRoomDto) {
+  async create(
+    userId: number,
+    createRoomDto: CreateRoomDto,
+    file?: Express.Multer.File,
+  ) {
     const roomCreated = await this.prismaService.room.create({
       data: {
         name: createRoomDto.name,
+        ...(file ? { avatarUrl: file.path.replace('public/', '') } : {}),
         users: {
           create: [{ user: { connect: { id: userId } } }],
         },
       },
     });
+    this.emitter.roomCreated(roomCreated.id, userId);
     return roomCreated;
   }
 
