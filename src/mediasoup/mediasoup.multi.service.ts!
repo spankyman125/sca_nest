@@ -1,0 +1,234 @@
+import { Injectable } from '@nestjs/common';
+import config from './mediasoup.config';
+import mediasoup from 'mediasoup';
+import { WorkerLogLevel } from 'mediasoup/node/lib/Worker';
+import { WorkerLogTag } from 'mediasoup/node/lib/Worker';
+import { WebRtcServerOptions } from 'mediasoup/node/lib/WebRtcServer';
+import { RtpCodecCapability } from 'mediasoup/node/lib/RtpParameters';
+
+// interface MediasoupRoom {
+//   id: number;
+// }
+
+@Injectable()
+export class MediasoupService {
+  // static rooms: Map<number, MediasoupRoom> = new Map();
+  static nextMediasoupWorkerId = 0;
+  static mediasoupWorkers: mediasoup.types.Worker<mediasoup.types.AppData>[] =
+    [];
+  static mediasoupRouter;
+
+  // static async runSocketServer() {
+  //   socketServer = socketIO(webServer, {
+  //     serveClient: false,
+  //     path: '/server',
+  //     log: false,
+  //   });
+
+  //   socketServer.on('connection', (socket) => {
+  //     console.log('client connected');
+
+  //     // inform the client about existence of producer
+  //     if (producer) {
+  //       socket.emit('newProducer');
+  //     }
+
+  //     socket.on('disconnect', () => {
+  //       console.log('client disconnected');
+  //     });
+
+  //     socket.on('connect_error', (err) => {
+  //       console.error('client connection error', err);
+  //     });
+
+  //     socket.on('getRouterRtpCapabilities', (data, callback) => {
+  //       callback(mediasoupRouter.rtpCapabilities);
+  //     });
+
+  //     socket.on('createProducerTransport', async (data, callback) => {
+  //       try {
+  //         const { transport, params } = await createWebRtcTransport();
+  //         producerTransport = transport;
+  //         callback(params);
+  //       } catch (err) {
+  //         console.error(err);
+  //         callback({ error: err.message });
+  //       }
+  //     });
+
+  //     socket.on('createConsumerTransport', async (data, callback) => {
+  //       try {
+  //         const { transport, params } = await createWebRtcTransport();
+  //         consumerTransport = transport;
+  //         callback(params);
+  //       } catch (err) {
+  //         console.error(err);
+  //         callback({ error: err.message });
+  //       }
+  //     });
+
+  //     socket.on('connectProducerTransport', async (data, callback) => {
+  //       await producerTransport.connect({
+  //         dtlsParameters: data.dtlsParameters,
+  //       });
+  //       callback();
+  //     });
+
+  //     socket.on('connectConsumerTransport', async (data, callback) => {
+  //       await consumerTransport.connect({
+  //         dtlsParameters: data.dtlsParameters,
+  //       });
+  //       callback();
+  //     });
+
+  //     socket.on('produce', async (data, callback) => {
+  //       const { kind, rtpParameters } = data;
+  //       producer = await producerTransport.produce({ kind, rtpParameters });
+  //       callback({ id: producer.id });
+
+  //       // inform clients about new producer
+  //       socket.broadcast.emit('newProducer');
+  //     });
+
+  //     socket.on('consume', async (data, callback) => {
+  //       callback(await createConsumer(producer, data.rtpCapabilities));
+  //     });
+
+  //     socket.on('resume', async (data, callback) => {
+  //       await consumer.resume();
+  //       callback();
+  //     });
+  //   });
+  // }
+
+  static getMediasoupWorker() {
+    const worker = this.mediasoupWorkers[this.nextMediasoupWorkerId];
+
+    if (++this.nextMediasoupWorkerId === this.mediasoupWorkers.length)
+      this.nextMediasoupWorkerId = 0;
+
+    return worker;
+  }
+
+  static async runMediasoupWorkers() {
+    const { numWorkers } = config.mediasoup;
+
+    console.log('running %d mediasoup Workers...', numWorkers);
+
+    for (let i = 0; i < numWorkers; ++i) {
+      const worker = await mediasoup.createWorker({
+        logLevel: config.mediasoup.workerSettings.logLevel as WorkerLogLevel,
+        logTags: config.mediasoup.workerSettings.logTags as WorkerLogTag[],
+        rtcMinPort: Number(config.mediasoup.workerSettings.rtcMinPort),
+        rtcMaxPort: Number(config.mediasoup.workerSettings.rtcMaxPort),
+      });
+
+      worker.on('died', () => {
+        console.log(
+          'mediasoup Worker died, exiting  in 2 seconds... [pid:%d]',
+          worker.pid,
+        );
+
+        setTimeout(() => process.exit(1), 2000);
+      });
+
+      this.mediasoupWorkers.push(worker);
+
+      // Create a WebRtcServer in this Worker.
+      if (process.env.MEDIASOUP_USE_WEBRTC_SERVER !== 'false') {
+        // Each mediasoup Worker will run its own WebRtcServer, so those cannot
+        // share the same listening ports. Hence we increase the value in config.js
+        // for each Worker.
+        const webRtcServerOptions: WebRtcServerOptions = config.mediasoup
+          .webRtcServerOptions as WebRtcServerOptions;
+
+        const portIncrement = this.mediasoupWorkers.length - 1;
+
+        const webRtcServer = await worker.createWebRtcServer({
+          ...webRtcServerOptions,
+          listenInfos: webRtcServerOptions.listenInfos.map((listenInfo) => {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            return { ...listenInfo, port: listenInfo.port! + portIncrement };
+          }),
+        });
+
+        worker.appData.webRtcServer = webRtcServer;
+        const mediaCodecs = config.mediasoup.routerOptions.mediaCodecs;
+        this.mediasoupRouter = await worker.createRouter({ mediaCodecs });
+      }
+
+      // Log worker resource usage every X seconds.
+      setInterval(async () => {
+        const usage = await worker.getResourceUsage();
+
+        console.log(
+          'mediasoup Worker resource usage [pid:%d]: %o',
+          worker.pid,
+          usage,
+        );
+      }, 120000);
+    }
+  }
+
+  static async createConsumer(producer, rtpCapabilities) {
+    if (
+      !mediasoupRouter.canConsume({
+        producerId: producer.id,
+        rtpCapabilities,
+      })
+    ) {
+      console.error('can not consume');
+      return;
+    }
+    try {
+      consumer = await consumerTransport.consume({
+        producerId: producer.id,
+        rtpCapabilities,
+        paused: producer.kind === 'video',
+      });
+    } catch (error) {
+      console.error('consume failed', error);
+      return;
+    }
+
+    if (consumer.type === 'simulcast') {
+      await consumer.setPreferredLayers({ spatialLayer: 2, temporalLayer: 2 });
+    }
+
+    return {
+      producerId: producer.id,
+      id: consumer.id,
+      kind: consumer.kind,
+      rtpParameters: consumer.rtpParameters,
+      type: consumer.type,
+      producerPaused: consumer.producerPaused,
+    };
+  }
+
+  static async createWebRtcTransport() {
+    const { maxIncomingBitrate, initialAvailableOutgoingBitrate } =
+      config.mediasoup.webRtcTransport;
+
+    const transport = await mediasoupRouter.createWebRtcTransport({
+      listenIps: config.mediasoup.webRtcTransport.listenIps,
+      enableUdp: true,
+      enableTcp: true,
+      preferUdp: true,
+      initialAvailableOutgoingBitrate,
+    });
+    if (maxIncomingBitrate) {
+      try {
+        await transport.setMaxIncomingBitrate(maxIncomingBitrate);
+      } catch (error) {}
+    }
+    return {
+      transport,
+      params: {
+        id: transport.id,
+        iceParameters: transport.iceParameters,
+        iceCandidates: transport.iceCandidates,
+        dtlsParameters: transport.dtlsParameters,
+      },
+    };
+  }
+}

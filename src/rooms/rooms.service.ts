@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateRoomDto } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { RoomsEmitterService } from './rooms.emitter.service';
+import { Express } from 'express';
 
 @Injectable()
 export class RoomsService {

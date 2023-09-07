@@ -7,6 +7,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { SocketModule } from './socket/socket.module';
 import { UsersModule } from './users/users.module';
 import { MessagesModule } from './messages/messages.module';
+import { MediasoupModule } from './mediasoup/mediasoup.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { MessagesModule } from './messages/messages.module';
     CryptModule,
     RoomsModule,
     SocketModule,
+    MediasoupModule,
   ],
   controllers: [],
   providers: [AppGateway],
