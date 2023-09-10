@@ -9,17 +9,35 @@ import {
   Worker,
   Router,
   RtpCodecCapability,
+  IceCandidate,
+  DtlsParameters,
+  IceParameters,
+  RtpCapabilities,
+  MediaKind,
+  RtpParameters,
 } from 'mediasoup/node/lib/types';
 import { SocketService } from '../socket/socket.service';
 import config from './mediasoup.config';
+import { AuthSocket } from '../app.gateway';
+
+export interface TransportOptions {
+  id: string;
+  iceParameters: IceParameters;
+  iceCandidates: IceCandidate[];
+  dtlsParameters: DtlsParameters;
+}
+
+export interface Peer {
+  socket: AuthSocket;
+  transport: { consumer: WebRtcTransport; producer: WebRtcTransport };
+  producer: Producer | undefined;
+  consumers: Consumer[];
+}
 
 class MediasoupRoom {
   worker: Worker;
-  producer: Producer;
-  consumer: Consumer;
-  producerTransport: WebRtcTransport;
-  consumerTransport: WebRtcTransport;
   mediasoupRouter: Router;
+  peers: Map<string, Peer> = new Map();
 
   constructor(worker: Worker) {
     this.worker = worker;
@@ -31,98 +49,143 @@ class MediasoupRoom {
     this.mediasoupRouter = await this.worker.createRouter({ mediaCodecs });
   }
 
+  removePeer(socket: AuthSocket) {
+    const peerToRemove = this.peers.get(socket.id);
+    peerToRemove?.transport.consumer.close();
+    peerToRemove?.transport.producer.close();
+    this.peers.delete(socket.id);
+  }
+
+  async join(socket: AuthSocket): Promise<{
+    consumerTransportOptions: TransportOptions;
+    producerTransportOptions: TransportOptions;
+    producerIds: string[];
+  }> {
+    const consumerTransport = await this.createWebRtcTransport();
+    const producerTransport = await this.createWebRtcTransport();
+    this.peers.set(socket.id, {
+      socket: socket,
+      transport: {
+        consumer: consumerTransport.transport,
+        producer: producerTransport.transport,
+      },
+      producer: undefined,
+      consumers: [],
+    });
+    const producerIds: string[] = [];
+    this.peers.forEach((peer) => {
+      if (peer.producer) producerIds.push(peer.producer.id);
+    });
+    return {
+      consumerTransportOptions: consumerTransport.options, //strip to TransportOptions
+      producerTransportOptions: producerTransport.options,
+      producerIds,
+    };
+  }
+
   private async createWebRtcTransport() {
     const { maxIncomingBitrate, initialAvailableOutgoingBitrate } =
       config.mediasoup.webRtcTransportOptions;
 
     const transport = await this.mediasoupRouter.createWebRtcTransport({
       listenIps: config.mediasoup.webRtcTransportOptions.listenIps,
-      enableUdp: true,
-      enableTcp: true,
       preferUdp: true,
       initialAvailableOutgoingBitrate,
     });
-    transport.on('@close', () => console.log('transport close'));
     if (maxIncomingBitrate) {
       try {
         await transport.setMaxIncomingBitrate(maxIncomingBitrate);
       } catch (error) {}
     }
-    return {
-      transport,
-      params: {
-        id: transport.id,
-        iceParameters: transport.iceParameters,
-        iceCandidates: transport.iceCandidates,
-        dtlsParameters: transport.dtlsParameters,
-      },
+    const options: TransportOptions = {
+      id: transport.id,
+      dtlsParameters: transport.dtlsParameters,
+      iceCandidates: transport.iceCandidates,
+      iceParameters: transport.iceParameters,
     };
+    return { transport, options };
   }
 
-  async createConsumerTransport() {
-    const { transport, params } = await this.createWebRtcTransport();
-    this.consumerTransport = transport;
-    return params;
+  async connectProducerTransport(
+    socket: AuthSocket,
+    dtlsParameters: DtlsParameters,
+  ) {
+    const peer = this.peers.get(socket.id);
+    peer?.transport.producer.connect({ dtlsParameters });
   }
 
-  async createProducerTransport() {
-    const { transport, params } = await this.createWebRtcTransport();
-    this.producerTransport = transport;
-    return params;
+  async connectConsumerTransport(
+    socket: AuthSocket,
+    dtlsParameters: DtlsParameters,
+  ) {
+    const peer = this.peers.get(socket.id);
+    peer?.transport.consumer.connect({ dtlsParameters });
   }
 
-  async produce(kind: any, rtpParameters: any) {
-    this.producer = await this.producerTransport.produce({
-      kind,
-      rtpParameters,
-    });
-    return { id: this.producer.id };
-  }
-
-  async consume(rtpCapabilities: any) {
-    return await this.createConsumer(this.producer, rtpCapabilities);
-  }
-
-  private async createConsumer(producer, rtpCapabilities) {
-    if (
-      !this.mediasoupRouter.canConsume({
-        producerId: producer.id,
-        rtpCapabilities,
-      })
-    ) {
-      console.error('can not consume');
-      return;
-    }
-    try {
-      this.consumer = await this.consumerTransport.consume({
-        producerId: producer.id,
-        rtpCapabilities,
-        paused: producer.kind === 'video',
+  async produce(
+    socket: AuthSocket,
+    kind: MediaKind,
+    rtpParameters: RtpParameters,
+  ) {
+    const peer = this.peers.get(socket.id);
+    if (peer) {
+      peer.producer = await peer?.transport.producer.produce({
+        kind,
+        rtpParameters,
       });
+      this.notifyPeers(socket, peer.producer.id);
+      return { id: peer?.producer?.id };
+    }
+  }
+
+  async notifyPeers(socket: AuthSocket, producerId: string) {
+    this.peers.forEach((peer) => {
+      if (peer.socket.id !== socket.id)
+        peer.socket.emit('mediasoup:producer:new', producerId); //strip to TransportOptions
+    });
+  }
+
+  async consume(
+    socket: AuthSocket,
+    producerId: string,
+    rtpCapabilities: RtpCapabilities,
+  ) {
+    // if (
+    //   !this.mediasoupRouter.canConsume({
+    //     producerId,
+    //     rtpCapabilities,
+    //   })
+    // ) {
+    //   console.error('can not consume');
+    //   return;
+    // }
+    try {
+      const peer = this.peers.get(socket.id);
+      if (peer) {
+        const consumer = await peer.transport.consumer.consume({
+          producerId,
+          rtpCapabilities,
+          paused: true,
+          // paused: producer.object.kind === 'video',
+        });
+        peer.consumers.push(consumer);
+        return {
+          id: consumer.id,
+          kind: consumer.kind,
+          rtpParameters: consumer.rtpParameters,
+          type: consumer.type,
+          producerPaused: consumer.producerPaused,
+        };
+      }
     } catch (error) {
       console.error('consume failed', error);
       return;
     }
-
-    if (this.consumer.type === 'simulcast') {
-      await this.consumer.setPreferredLayers({
-        spatialLayer: 2,
-        temporalLayer: 2,
-      });
-    }
-
-    return {
-      producerId: producer.id,
-      id: this.consumer.id,
-      kind: this.consumer.kind,
-      rtpParameters: this.consumer.rtpParameters,
-      type: this.consumer.type,
-      producerPaused: this.consumer.producerPaused,
-    };
   }
 
-  async resume() {
-    this.consumer.resume();
+  async resume(socket: AuthSocket, consumerId: string) {
+    const peer = this.peers.get(socket.id);
+    peer?.consumers.find((consumer) => consumer.id === consumerId)?.resume();
   }
 }
 

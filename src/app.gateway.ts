@@ -54,6 +54,7 @@ export class AppGateway
 
   async handleDisconnect(@ConnectedSocket() socket: AuthSocket) {
     if (socket.user) this.socketService.unmapIdFromSocket(socket.user.sub);
+    this.mediasoupService.rooms.forEach((room) => room.removePeer(socket));
     console.log(`User ${socket.id} disconnected`);
   }
 
@@ -76,77 +77,76 @@ export class AppGateway
   //   }
   // }
 
-  @SubscribeMessage('getRouterRtpCapabilities')
+  @SubscribeMessage('mediasoup:join')
+  async join(@MessageBody() data: any, @ConnectedSocket() socket: AuthSocket) {
+    console.log('mediasoup:join');
+    const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
+    return await mediasoupRoom.join(socket);
+  }
+
+  @SubscribeMessage('mediasoup:getRTPCaps')
   async getRouterRtpCapabilities(@MessageBody() data: any) {
-    console.log('getRouterRtpCapabilities');
+    console.log('mediasoup:getRTPCaps');
     const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
     return mediasoupRoom.mediasoupRouter.rtpCapabilities;
   }
 
-  @SubscribeMessage('createProducerTransport')
-  async createProducerTransport(@MessageBody() data: any) {
-    console.log(`createProducerTransport (${data.roomId})`);
+  @SubscribeMessage('mediasoup:connect:producer')
+  async connectProducerTransport(
+    @MessageBody() data: any,
+    @ConnectedSocket() socket: AuthSocket,
+  ) {
+    console.log('mediasoup:connect:producer', data);
     const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    try {
-      return await mediasoupRoom.createProducerTransport();
-    } catch (err) {
-      return { error: err.message };
-    }
-  }
-
-  @SubscribeMessage('createConsumerTransport')
-  async createConsumerTransport(@MessageBody() data: any) {
-    console.log(`createConsumerTransport (${data.roomId})`);
-    const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    try {
-      return await mediasoupRoom.createConsumerTransport();
-    } catch (err) {
-      return { error: err.message };
-    }
-  }
-
-  @SubscribeMessage('connectProducerTransport')
-  async connectProducerTransport(@MessageBody() data: any) {
-    console.log('connectProducerTransport', data);
-    const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    await mediasoupRoom.producerTransport.connect({
-      dtlsParameters: data.dtlsParameters,
-    });
-    console.log('connectProducerTransport connected');
+    await mediasoupRoom.connectProducerTransport(socket, data.dtlsParameters);
+    console.log('mediasoup:connect:producer connected');
     return true;
   }
 
-  @SubscribeMessage('connectConsumerTransport')
-  async connectConsumerTransport(@MessageBody() data: any) {
-    console.log('connectConsumerTransport', data);
+  @SubscribeMessage('mediasoup:connect:consumer')
+  async connectConsumerTransport(
+    @MessageBody() data: any,
+    @ConnectedSocket() socket: AuthSocket,
+  ) {
+    console.log('mediasoup:connect:consumer', data);
     const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    await mediasoupRoom.consumerTransport.connect({
-      dtlsParameters: data.dtlsParameters,
-    });
-    console.log('connectConsumerTransport connected');
+    await mediasoupRoom.connectConsumerTransport(socket, data.dtlsParameters);
+    console.log('mediasoup:connect:consumer connected');
     return true;
   }
 
   @SubscribeMessage('produce')
-  async produce(@MessageBody() data: any) {
+  async produce(
+    @MessageBody() data: any,
+    @ConnectedSocket() socket: AuthSocket,
+  ) {
     console.log('produce, ', data);
     const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    const { kind, rtpParameters } = data;
-    return mediasoupRoom.produce(kind, rtpParameters);
+    return mediasoupRoom.produce(socket, data.kind, data.rtpParameters);
   }
 
   @SubscribeMessage('consume')
-  async consume(@MessageBody() data: any) {
+  async consume(
+    @MessageBody() data: any,
+    @ConnectedSocket() socket: AuthSocket,
+  ) {
     console.log('consume', data);
     const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    return mediasoupRoom.consume(data.rtpCapabilities);
+    return await mediasoupRoom.consume(
+      socket,
+      data.producerId,
+      data.rtpCapabilities,
+    );
   }
 
   @SubscribeMessage('resume')
-  async resume(@MessageBody() data: any) {
+  async resume(
+    @MessageBody() data: any,
+    @ConnectedSocket() socket: AuthSocket,
+  ) {
     console.log('resume');
     const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-    await mediasoupRoom.resume();
+    await mediasoupRoom.resume(socket, data.consumerId);
     return true;
   }
 }
