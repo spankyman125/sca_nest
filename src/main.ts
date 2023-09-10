@@ -7,9 +7,22 @@ import * as compression from 'compression';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { PrismaClientExceptionFilter } from './shared/filters/prisma.filter';
+import * as fs from 'fs';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  if (!(process.env.PRIVATE_SSL_KEY && process.env.PUBLIC_SSL_CERT)) {
+    console.log('No ssl private key or public cert not specified');
+    return;
+  }
+
+  const httpsOptions = {
+    key: fs.readFileSync(process.env.PRIVATE_SSL_KEY),
+    cert: fs.readFileSync(process.env.PUBLIC_SSL_CERT),
+  };
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    httpsOptions,
+  });
   const { httpAdapter } = app.get(HttpAdapterHost);
 
   if (process.env.NODE_ENV === 'dev')

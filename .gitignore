@@ -37,3 +37,5 @@ lerna-debug.log*
 #Dev database
 prisma/dev.db
 public/
+secrets/fullchain.pem
+secrets/privkey.pem
