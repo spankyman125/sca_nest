@@ -58,25 +58,6 @@ export class AppGateway
     console.log(`User ${socket.id} disconnected`);
   }
 
-  // @SubscribeMessage('mediasoup:connect')
-  // async mediasoupConnect(@MessageBody() data: any) {
-  //   const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-  //   return mediasoupRoom.mediasoupRouter.rtpCapabilities;
-  // }
-
-  // @SubscribeMessage('mediasoup:publish')
-  // async mediasoupPublish(@MessageBody() data: any) {
-  //   const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
-  //   try {
-  //     const { transport, params } = await mediasoupRoom.createWebRtcTransport();
-  //     this.mediasoupService.producerTransport = transport;
-  //     return params;
-  //   } catch (err) {
-  //     console.error(err);
-  //     return { error: err.message };
-  //   }
-  // }
-
   @SubscribeMessage('mediasoup:join')
   async join(@MessageBody() data: any, @ConnectedSocket() socket: AuthSocket) {
     console.log('mediasoup:join');
