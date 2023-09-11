@@ -129,9 +129,15 @@ class MediasoupRoom {
   ) {
     const peer = this.peers.get(socket.id);
     if (peer) {
-      peer.producer = await peer?.transport.producer.produce({
+      const producer = await peer?.transport.producer.produce({
         kind,
         rtpParameters,
+      });
+      peer.producer = producer;
+      producer.on('transportclose', () => {
+        this.peers.forEach((peer) =>
+          peer.socket.emit('mediasoup:producer:close', { id: producer.id }),
+        );
       });
       this.notifyPeers(socket, peer.producer.id);
       return { id: peer?.producer?.id };
@@ -167,6 +173,11 @@ class MediasoupRoom {
           rtpCapabilities,
           paused: true,
           // paused: producer.object.kind === 'video',
+        });
+        consumer.on('transportclose', () => {
+          this.peers.forEach((peer) =>
+            peer.socket.emit('mediasoup:consumer:close', { id: consumer.id }),
+          );
         });
         peer.consumers.push(consumer);
         return {
