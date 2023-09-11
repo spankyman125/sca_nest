@@ -36,7 +36,7 @@ const config = {
         'sctp',
       ],
       rtcMinPort: 10000,
-      rtcMaxPort: 10010,
+      rtcMaxPort: 10050,
     },
     // mediasoup Router options.
     // See https://mediasoup.org/documentation/v3/mediasoup/api/#RouterOptions
