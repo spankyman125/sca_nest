@@ -19,6 +19,8 @@ import {
 import { SocketService } from '../socket/socket.service';
 import config from './mediasoup.config';
 import { AuthSocket } from '../app.gateway';
+import { PrismaService } from '../prisma/prisma.service';
+import { User } from '@prisma/client';
 
 export interface TransportOptions {
   id: string;
@@ -29,6 +31,7 @@ export interface TransportOptions {
 
 export interface Peer {
   socket: AuthSocket;
+  user: User;
   transport: { consumer: WebRtcTransport; producer: WebRtcTransport };
   producer: Producer | undefined;
   consumers: Consumer[];
@@ -36,11 +39,14 @@ export interface Peer {
 
 class MediasoupRoom {
   worker: Worker;
+  prismaService: PrismaService;
+
   mediasoupRouter: Router;
   peers: Map<string, Peer> = new Map();
 
-  constructor(worker: Worker) {
+  constructor(worker: Worker, prismaService: PrismaService) {
     this.worker = worker;
+    this.prismaService = prismaService;
   }
 
   async init() {
@@ -65,6 +71,9 @@ class MediasoupRoom {
     const producerTransport = await this.createWebRtcTransport();
     this.peers.set(socket.id, {
       socket: socket,
+      user: await this.prismaService.user.findUniqueOrThrow({
+        where: { id: socket.user.sub },
+      }),
       transport: {
         consumer: consumerTransport.transport,
         producer: producerTransport.transport,
@@ -180,8 +189,13 @@ class MediasoupRoom {
           );
         });
         peer.consumers.push(consumer);
+        let producerUser: User;
+        this.peers.forEach((peer) => {
+          if (peer.producer?.id === producerId) producerUser = peer.user;
+        });
         return {
           id: consumer.id,
+          user: producerUser!,
           kind: consumer.kind,
           rtpParameters: consumer.rtpParameters,
           type: consumer.type,
@@ -205,7 +219,10 @@ export class MediasoupService {
   rooms: Map<number, MediasoupRoom> = new Map();
   worker: Worker;
 
-  constructor(private readonly socketService: SocketService) {
+  constructor(
+    private readonly socketService: SocketService,
+    private readonly prismaService: PrismaService,
+  ) {
     this.runMediasoupWorker();
   }
 
@@ -228,7 +245,7 @@ export class MediasoupService {
   async ensureRoom(roomId: number): Promise<MediasoupRoom> {
     if (this.rooms.has(roomId)) return this.rooms.get(roomId)!;
     else {
-      const room = new MediasoupRoom(this.worker);
+      const room = new MediasoupRoom(this.worker, this.prismaService);
       await room.init();
       this.rooms.set(roomId, room);
       return room;
