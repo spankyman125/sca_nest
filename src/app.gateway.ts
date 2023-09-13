@@ -65,6 +65,13 @@ export class AppGateway
     return await mediasoupRoom.join(socket);
   }
 
+  @SubscribeMessage('mediasoup:leave')
+  async leave(@MessageBody() data: any, @ConnectedSocket() socket: AuthSocket) {
+    console.log('mediasoup:leave');
+    const mediasoupRoom = await this.mediasoupService.ensureRoom(data.roomId);
+    return mediasoupRoom.removePeer(socket);
+  }
+
   @SubscribeMessage('mediasoup:getRTPCaps')
   async getRouterRtpCapabilities(@MessageBody() data: any) {
     console.log('mediasoup:getRTPCaps');
