@@ -145,7 +145,7 @@ class MediasoupRoom {
       peer.producer = producer;
       producer.on('transportclose', () => {
         this.peers.forEach((peer) =>
-          peer.socket.emit('mediasoup:producer:close', { id: producer.id }),
+          peer.socket.emit('mediasoup:producer:close', producer.id),
         );
       });
       this.notifyPeers(socket, peer.producer.id);
