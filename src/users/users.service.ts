@@ -93,24 +93,25 @@ export class UsersService {
       pseudonym: true,
       isOnline: true,
     };
-    return this.prismaService.user
-      .findUniqueOrThrow({
-        where: { id: userId },
+    const friendsTo = this.prismaService.friendsRelation
+      .findMany({
+        where: { friendId: userId },
         include: {
-          friendWith: {
-            include: { Friend: { select: selectFriendFields } },
-          },
-          friendTo: {
-            include: { Friend: { select: selectFriendFields } },
-          },
+          User: { select: selectFriendFields },
         },
       })
-      .then((user) => {
-        return [
-          ...user.friendTo.map((friend) => friend.Friend),
-          ...user.friendWith.map((friend) => friend.Friend),
-        ];
-      });
+      .then((relations) => relations.map((relation) => relation.User));
+
+    const friendsWith = this.prismaService.friendsRelation
+      .findMany({
+        where: { userId: userId },
+        include: {
+          Friend: { select: selectFriendFields },
+        },
+      })
+      .then((relations) => relations.map((relation) => relation.Friend));
+
+    return [...(await friendsWith), ...(await friendsTo)];
   }
 
   async addToRoom(userId: number, roomId: number) {
@@ -175,11 +176,14 @@ export class UsersService {
       data: { userId: smallerId, friendId: biggerId },
       include: { Friend: { select: selectFriendFields } },
     });
-
+    const friend = await this.prismaService.user.findUniqueOrThrow({
+      where: { id: friendId },
+    });
     await this.prismaService.room.create({
       data: {
         private: true,
-        name: 'Private room',
+        name: friend.username,
+        avatarUrl: friend.avatarUrl,
         users: {
           create: [
             { user: { connect: { id: smallerId } } },
