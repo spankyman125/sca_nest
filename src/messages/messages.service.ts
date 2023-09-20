@@ -15,16 +15,28 @@ export class MessagesService {
     roomId: number,
     userId: number,
     { content }: CreateMessageDto,
+    attachments?: Express.Multer.File[],
   ) {
     const newMessage = await this.prismaService.message.create({
-      include: { user: true },
+      include: { user: true, attachments: true },
       data: {
         content,
         user: { connect: { id: userId } },
         room: { connect: { id: roomId } },
       },
     });
-
+    if (attachments)
+      for (let i = 0; i < attachments.length; i++) {
+        const attachment = attachments[i];
+        newMessage.attachments.push(
+          await this.prismaService.attachment.create({
+            data: {
+              messageId: newMessage.id,
+              url: attachment.path.replace('public/', ''),
+            },
+          }),
+        );
+      }
     this.emitter.messageNew(userId, roomId, newMessage);
     return newMessage;
   }

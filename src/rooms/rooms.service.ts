@@ -78,6 +78,7 @@ export class RoomsService {
       skip: skip,
       take: take,
       include: {
+        attachments: true,
         user: { select: { avatarUrl: true, id: true, pseudonym: true } },
       },
     });

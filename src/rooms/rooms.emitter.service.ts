@@ -27,6 +27,7 @@ export class RoomsEmitterService {
           take: 1,
           orderBy: { createdAt: Prisma.SortOrder.desc },
           include: {
+            attachments: true,
             user: {
               select: { avatarUrl: true, id: true, pseudonym: true },
             },

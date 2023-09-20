@@ -11,6 +11,7 @@ const ROOMS_NUMBER = 10;
 const USERS_NUMBER = 100;
 const USERS_ROOMS_NUMBER = 250;
 const FRIENDS_NUMBER = 100;
+const ATTACHMENTS_NUMBER = 5000;
 
 const userGenerator = (function* () {
   const usernamesGenerated: Set<string> = new Set<string>();
@@ -45,6 +46,20 @@ const roomGenerator = (function* () {
       private: false,
     };
 })();
+
+// const attachmentGenerator = (function* () {
+//   while (true)
+//     yield {
+//       messageId: chance.integer({
+//         min: 0,
+//         max: MESSAGES_NUMBER - 1,
+//       }),
+//       url: `static/images/rooms/avatars/${chance.integer({
+//         min: 0,
+//         max: 100,
+//       })}.png`,
+//     };
+// })();
 
 const messageGenerator = (function* () {
   while (true)
@@ -113,41 +128,76 @@ async function start() {
   //   }
   // }
 
+  // i = 0;
+  // while (i !== MESSAGES_NUMBER) {
+  //   try {
+  //     await prisma.message.create({
+  //       data: {
+  //         content: chance.sentence(),
+  //         createdAt: chance.date({ max: new Date() }),
+  //         roomId: chance.integer({
+  //           min: 0,
+  //           max: ROOMS_NUMBER - 1,
+  //         }),
+  //         userId: chance.integer({
+  //           min: 0,
+  //           max: USERS_NUMBER - 1,
+  //         }),
+  //       },
+  //     });
+  //     i++;
+  //     // console.log(`Message with index=${i} added`);
+  //   } catch (e) {
+  //     // console.log(`Message with index=${i} not added`);
+  //   }
+  // }
+
   i = 0;
-  while (i !== MESSAGES_NUMBER) {
+  while (i !== USERS_ROOMS_NUMBER) {
     try {
-      await prisma.message.create({ data: messageGenerator.next().value });
+      await prisma.userRoomRelation.create({
+        data: userRoomGenerator.next().value,
+      });
       i++;
-      console.log(`Message with index=${i} added`);
+      // console.log(`User in room with index=${i} added`);
     } catch (e) {
-      console.log(`Message with index=${i} not added`);
+      // console.log(`User in room with index=${i} not added`);
     }
   }
 
-  // i = 0;
-  // while (i !== USERS_ROOMS_NUMBER) {
-  //   try {
-  //     await prisma.userRoomRelation.create({
-  //       data: userRoomGenerator.next().value,
-  //     });
-  //     i++;
-  //     // console.log(`User in room with index=${i} added`);
-  //   } catch (e) {
-  //     // console.log(`User in room with index=${i} not added`);
-  //   }
-  // }
+  i = 0;
+  while (i !== FRIENDS_NUMBER) {
+    try {
+      await prisma.friendsRelation.create({
+        data: friendsGenerator.next().value,
+      });
+      i++;
+      // console.log(`Friend with index=${i} added`);
+    } catch (e) {
+      // console.log(`Friend with index=${i} not added`);
+    }
+  }
 
-  // i = 0;
-  // while (i !== FRIENDS_NUMBER) {
-  //   try {
-  //     await prisma.friendsRelation.create({
-  //       data: friendsGenerator.next().value,
-  //     });
-  //     i++;
-  //     // console.log(`Friend with index=${i} added`);
-  //   } catch (e) {
-  //     // console.log(`Friend with index=${i} not added`);
-  //   }
-  // }
+  i = 0;
+  while (i !== ATTACHMENTS_NUMBER) {
+    try {
+      await prisma.attachment.create({
+        data: {
+          messageId: chance.integer({
+            min: 0,
+            max: MESSAGES_NUMBER - 1,
+          }),
+          url: `static/images/rooms/avatars/${chance.integer({
+            min: 0,
+            max: 100,
+          })}.png`,
+        },
+      });
+      i++;
+      // console.log(`Friend with index=${i} added`);
+    } catch (e) {
+      // console.log(`Friend with index=${i} not added`);
+    }
+  }
 }
 start();

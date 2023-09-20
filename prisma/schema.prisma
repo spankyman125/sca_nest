@@ -38,6 +38,14 @@ model Message {
   userId    Int
   room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
+  attachments Attachment[]
+}
+
+model Attachment {
+  id        Int      @id @default(autoincrement())
+  Message   Message  @relation(fields: [messageId], references: [id])
+  messageId Int
+  url       String
 }
 
 model UserRoomRelation {
