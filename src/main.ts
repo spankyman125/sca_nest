@@ -24,9 +24,8 @@ async function bootstrap() {
     httpsOptions,
   });
   const { httpAdapter } = app.get(HttpAdapterHost);
-
-  if (process.env.NODE_ENV === 'dev')
-    app.useStaticAssets(join(__dirname, '..', '..', 'public'));
+  
+  app.useStaticAssets(join(__dirname, '..', '..', 'public'));
   app.setGlobalPrefix('api');
   app.enableCors();
   app.use(json({ limit: '50mb' }));
@@ -43,6 +42,6 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
 
   SwaggerModule.setup('api/docs', app, document);
-  await app.listen(30125);
+  await app.listen(443);
 }
 bootstrap();

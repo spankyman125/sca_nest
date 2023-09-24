@@ -119,7 +119,7 @@ const config = {
       listenIps: [
         {
           ip: '0.0.0.0',
-          announcedIp: '192.168.1.11',
+          announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP,
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
