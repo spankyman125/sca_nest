@@ -35,8 +35,8 @@ const config = {
         'svc',
         'sctp',
       ],
-      rtcMinPort: 10000,
-      rtcMaxPort: 10050,
+      rtcMinPort: process.env.MEDIASOUP_MIN_UDP_PORT,
+      rtcMaxPort: process.env.MEDIASOUP_MAX_UDP_PORT,
     },
     // mediasoup Router options.
     // See https://mediasoup.org/documentation/v3/mediasoup/api/#RouterOptions
@@ -120,6 +120,7 @@ const config = {
         {
           ip: '0.0.0.0',
           announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP,
+          hostname: process.env.MEDIASOUP_ANNOUNCED_HOSTNAME,
         },
       ],
       initialAvailableOutgoingBitrate: 1000000,
