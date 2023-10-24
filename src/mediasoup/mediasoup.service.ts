@@ -21,6 +21,8 @@ import config from './mediasoup.config';
 import { AuthSocket } from '../app.gateway';
 import { PrismaService } from '../prisma/prisma.service';
 import { User } from '@prisma/client';
+import { lookup } from 'dns';
+import { promisify } from 'util';
 
 export interface TransportOptions {
   id: string;
@@ -95,7 +97,18 @@ class MediasoupRoom {
   private async createWebRtcTransport() {
     const { maxIncomingBitrate, initialAvailableOutgoingBitrate } =
       config.mediasoup.webRtcTransportOptions;
-
+    const listenIps = config.mediasoup.webRtcTransportOptions.listenIps;
+    const promisifiedDns = promisify(lookup);
+    let announcedIp = '';
+    if (listenIps[0].hostname) {
+      announcedIp = (await promisifiedDns(listenIps[0].hostname)).address;
+    } else if (listenIps[0].announcedIp) {
+      announcedIp = listenIps[0].announcedIp;
+    } else {
+      announcedIp = '127.0.0.1';
+    }
+    console.log('Mediasoup announced ip is ', announcedIp);
+    listenIps[0].announcedIp = announcedIp;
     const transport = await this.mediasoupRouter.createWebRtcTransport({
       listenIps: config.mediasoup.webRtcTransportOptions.listenIps,
       preferUdp: true,
@@ -104,7 +117,7 @@ class MediasoupRoom {
     if (maxIncomingBitrate) {
       try {
         await transport.setMaxIncomingBitrate(maxIncomingBitrate);
-      } catch (error) {}
+      } catch (error) { }
     }
     const options: TransportOptions = {
       id: transport.id,
